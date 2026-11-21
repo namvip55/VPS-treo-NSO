@@ -29,30 +29,39 @@ Hệ thống sử dụng cơ chế **Symlink (Liên kết tượng trưng)** đ�
 
 ---
 
-## ⚡ 2. Quy Trình Cập Nhật Game Trong 10 Giây
+## ⚡ 2. Quy Trình Cập Nhật Game Trong 10 Giây (Hỗ Trợ Multi-VPS)
 
-### Bước 1: Tải file game `.jar` mới lên VPS
+### Cách 1: Dùng Tool Quản Lý Tập Trung (Khuyên Dùng - Tự Động 100%, Không Lẫn VPS)
+Khi quản lý nhiều VPS, hãy dùng công cụ [tools/vps_manager.py](file:///d:/project/Vps-Treo-Nso/tools/vps_manager.py) để chỉ định chính xác VPS cần update:
+
+```powershell
+# Cập nhật game cho đúng VPS chỉ định (ví dụ: vps1):
+python tools/vps_manager.py update-game --vps vps1 --jar "path/to/game_moi.jar"
+
+# Hoặc nếu file game đã được đặt trong servers/vps1/, chỉ cần gõ:
+python tools/vps_manager.py update-game --vps vps1
+```
+* **Lợi ích:**
+  - Tự động copy file vào thư mục riêng `servers/<vps_id>/` trên máy tính.
+  - Tự động đẩy file JAR lên đúng VPS đó.
+  - Tự động cập nhật symlink `game.jar` và restart acc trên VPS đó.
+  - **Hoàn toàn không ảnh hưởng đến các VPS khác trong hệ thống!**
+
+---
+
+### Cách 2: Thao Tác Bằng Dòng Lệnh Thủ Công
 Từ máy tính cá nhân (PowerShell hoặc Command Prompt), đứng tại thư mục chứa file game mới:
 
 ```powershell
-# Ví dụ file game mới tên là: Avatar250.jar
+# Bước 1: Tải file game .jar mới lên VPS
 scp Avatar250.jar vps-jar:/opt/jar-manager/games/
-```
-*(Hoặc dùng WinSCP kéo file game vào thư mục `/opt/jar-manager/games/`).*
 
-### Bước 2: Trỏ Symlink sang game mới
-Chạy lệnh sau qua SSH:
-
-```powershell
+# Bước 2: Trỏ Symlink sang game mới
 ssh vps-jar "ln -sf /opt/jar-manager/games/Avatar250.jar /opt/jar-manager/games/game.jar"
-```
 
-### Bước 3: Khởi động lại game
-* **Cách 1 (Dùng app):** Mở [JarManager.exe](file:///C:/JarManager/JarManager.exe) ngoài Desktop ➜ Bấm nút **`↺ Khoi Dong Lai Game`**.
-* **Cách 2 (Dùng lệnh):**
-  ```powershell
-  ssh vps-jar "/opt/jar-manager/scripts/stop-acc.sh acc1 && sleep 1 && /opt/jar-manager/scripts/start-acc.sh acc1"
-  ```
+# Bước 3: Khởi động lại game
+ssh vps-jar "/opt/jar-manager/scripts/stop-acc.sh acc1 && sleep 1 && /opt/jar-manager/scripts/start-acc.sh acc1"
+```
 
 ---
 

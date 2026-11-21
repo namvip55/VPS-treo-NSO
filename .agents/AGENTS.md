@@ -133,3 +133,33 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
 2. **[update-game](.agents/skills/update-game/SKILL.md):** Hướng dẫn đổi sang game .jar khác hoặc nạp bản mod mới trong 10 giây qua symlink.
 3. **[update-vps](.agents/skills/update-vps/SKILL.md):** Quy trình tự động di chuyển toàn bộ hệ thống sang một máy chủ VPS mới cùng loại trong 1 phút.
 4. **[package-client](.agents/skills/package-client/SKILL.md):** Quy trình và tập lệnh tự động đóng gói ứng dụng điều khiển 1-click giao cho khách (Single EXE hoặc Portable ZIP).
+
+---
+
+## 🌐 6. QUY CHUẨN QUẢN LÝ MULTI-VPS & CÔ LẬP GAME (MULTI-NODE ZERO-CONFUSION PROTOCOL)
+
+Khi dự án quản lý nhiều VPS cùng lúc (VPS cá nhân, VPS khách hàng), mọi AI Agent và lập trình viên **BẮT BUỘC TUÂN THỦ** kiến trúc phân vùng độc lập để **TUYỆT ĐỐI KHÔNG BAO GIỜ BỊ NHẦM LẪN GAME HAY CẤU HÌNH**:
+
+### 6.1. Cấu trúc phân vùng `servers/<vps_id>/`:
+Mỗi VPS sở hữu một không gian độc lập tuyệt đối:
+```text
+servers/
+├── vps1/                          # VPS Chính
+│   ├── config.json                # Thông số: Host, Port, Game, Key
+│   └── nepsilon.jar               # File game riêng của vps1
+└── vps2_sample/                   # VPS Khách mẫu
+    ├── config.json                # Thông số riêng của vps2
+    └── HoiUc220.jar               # File game riêng của vps2
+```
+* **Danh bạ trung tâm:** [vps_registry.json](file:///d:/project/Vps-Treo-Nso/vps_registry.json) lưu trữ toàn bộ danh sách VPS và chỉ định `active_vps`.
+
+### 6.2. Quy tắc hành động cho AI Agent:
+1. **Luôn xác định rõ mục tiêu trước khi thực thi:**
+   - Khi Người Dùng yêu cầu: *"Cập nhật game...", "Bật game...", "Kiểm tra VPS..."*, Agent phải kiểm tra xem User có chỉ định VPS cụ thể (ví dụ: `vps1`, `vps2`, `khách Tuấn`...) hay không.
+   - Nếu User chỉ định VPS cụ thể ➜ Chỉ thao tác trong `servers/<vps_id>/` và chạy lệnh với cờ `--vps <vps_id>`.
+   - Nếu User không chỉ định ➜ Mặc định sử dụng `active_vps` trong `vps_registry.json` hoặc hỏi lại để xác nhận nếu có nhiều máy chủ đang hoạt động.
+2. **Nguyên tắc không lẫn Game:**
+   - File game của VPS nào **bắt buộc nằm trong thư mục của VPS đó** (`servers/<vps_id>/`).
+   - Cấm sao chép đè file `.jar` giữa các thư mục VPS khác nhau trừ khi có chỉ thị trực tiếp từ User.
+3. **Sử dụng công cụ tập trung:**
+   - Dùng `python tools/vps_manager.py update-game --vps <vps_id>` để đảm bảo file game được đưa lên đúng máy chủ đích mà không ảnh hưởng bất kỳ VPS nào khác.

@@ -32,7 +32,15 @@ Vps-Treo-Nso/
 │   └── skills/                    # Bộ kỹ năng tự động hóa
 │       ├── vps-jar-setup/         # Skill tự động setup VPS từ số 0
 │       ├── update-game/           # Skill đổi bản game/mod mới
-│       └── update-vps/            # Skill di chuyển/cập nhật sang VPS mới
+│       ├── update-vps/            # Skill di chuyển/cập nhật sang VPS mới
+│       └── package-client/        # Skill đóng gói app 1-click cho khách
+├── servers/                       # PHÂN VÙNG CÔ LẬP CHO TỪNG VPS
+│   ├── vps1/                      # VPS Chính (nepsilon.jar + config.json)
+│   └── vps2_sample/               # VPS Khách mẫu (HoiUc220.jar + config.json)
+├── tools/                         # CÔNG CỤ TỰ ĐỘNG HÓA
+│   ├── vps_manager.py             # Quản lý & update từng VPS riêng biệt
+│   ├── package_client.py          # Đóng gói bộ cài 1-click cho khách (EXE/ZIP)
+│   └── ClientLauncher.cs          # Mã nguồn WinForms Client độc lập
 ├── docs/
 │   ├── ARCHITECTURE.md            # Thiết kế kiến trúc kỹ thuật & tối ưu RAM
 │   ├── NETWORK_AND_TROUBLESHOOTING.md # Mạng NAT, DNS Round-Robin & xử lý lỗi
@@ -45,6 +53,7 @@ Vps-Treo-Nso/
 │   ├── focus-acc.sh               # Phóng to và đưa cửa sổ acc lên đầu
 │   ├── status-all.sh              # Kiểm tra trạng thái toàn bộ acc
 │   └── system-info.sh             # Kiểm tra RAM, Swap, CPU tải
+├── vps_registry.json              # DANH BẠ QUẢN LÝ TẬP TRUNG MULTI-VPS
 ├── JarManager.cs                  # Mã nguồn C# launcher ẩn console
 ├── JarManager.ps1                 # Giao diện điều khiển Windows WinForms
 ├── JarManager.exe                 # File chạy Windows 1-click
