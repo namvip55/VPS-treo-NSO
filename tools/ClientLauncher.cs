@@ -4,6 +4,8 @@ using System.Drawing;
 using System.IO;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Windows.Forms;
 
 namespace JarManagerStandalone
@@ -72,12 +74,14 @@ namespace JarManagerStandalone
                         // Nếu tài nguyên được nhúng trong file thực thi
                         if (!overwriteIfEmbedded && File.Exists(outputPath) && new FileInfo(outputPath).Length > 0)
                         {
+                            if (resourceName == "PrivateKey") SecureKeyPermissions(outputPath);
                             return;
                         }
                         using (FileStream fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
                         {
                             stream.CopyTo(fs);
                         }
+                        if (resourceName == "PrivateKey") SecureKeyPermissions(outputPath);
                         return;
                     }
                 }
@@ -85,6 +89,7 @@ namespace JarManagerStandalone
                 // Chế độ Portable (không nhúng resource): tìm kiếm file bên ngoài cạnh file EXE
                 if (File.Exists(outputPath) && new FileInfo(outputPath).Length > 0)
                 {
+                    if (resourceName == "PrivateKey") SecureKeyPermissions(outputPath);
                     return;
                 }
 
@@ -97,6 +102,43 @@ namespace JarManagerStandalone
                 if (File.Exists(localPath))
                 {
                     File.Copy(localPath, outputPath, true);
+                    if (resourceName == "PrivateKey") SecureKeyPermissions(outputPath);
+                }
+            }
+            catch { }
+        }
+
+        private void SecureKeyPermissions(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return;
+
+                // 1. Phân quyền chuẩn bằng .NET FileSecurity (chỉ cho phép Current User toàn quyền)
+                try
+                {
+                    FileInfo fi = new FileInfo(path);
+                    FileSecurity fs = fi.GetAccessControl();
+                    fs.SetAccessRuleProtection(true, false); // Tắt kế thừa từ AppData
+                    SecurityIdentifier userSid = WindowsIdentity.GetCurrent().User;
+                    fs.AddAccessRule(new FileSystemAccessRule(userSid, FileSystemRights.FullControl, AccessControlType.Allow));
+                    fi.SetAccessControl(fs);
+                    return;
+                }
+                catch { }
+
+                // 2. Dự phòng bằng icacls của Windows
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "icacls.exe",
+                    Arguments = string.Format("\"{0}\" /inheritance:r /grant:r \"%USERNAME%:(R,W)\"", path),
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                using (Process p = Process.Start(psi))
+                {
+                    p.WaitForExit(3000);
                 }
             }
             catch { }
@@ -273,29 +315,35 @@ namespace JarManagerStandalone
             return startPort;
         }
 
-        private void EnsureTunnel()
+        private bool EnsureTunnel()
         {
             // Nếu tunnel của phiên này đang chạy và port đang mở thì tái sử dụng
             if (tunnelProcess != null && !tunnelProcess.HasExited && currentLocalPort > 0 && !IsPortFree(currentLocalPort))
             {
-                return;
+                return true;
             }
 
             // Tự động tìm port local còn rảnh (bắt đầu từ 5901) để cho phép mở nhiều client song song
             currentLocalPort = GetAvailableLocalPort(5901);
+
+            // Đảm bảo file private key có phân quyền an toàn tuyệt đối cho OpenSSH
+            if (File.Exists(keyFilePath))
+            {
+                SecureKeyPermissions(keyFilePath);
+            }
 
             try
             {
                 string sshArgs;
                 if (File.Exists(keyFilePath) && new FileInfo(keyFilePath).Length > 0)
                 {
-                    sshArgs = string.Format("-i \"{0}\" -p {1} -N -L {2}:localhost:5901 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 {3}@{4}",
+                    sshArgs = string.Format("-i \"{0}\" -p {1} -N -L {2}:localhost:5901 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 {3}@{4}",
                         keyFilePath, Program.VPS_PORT, currentLocalPort, Program.VPS_USER, Program.VPS_HOST);
                 }
                 else
                 {
                     // Fallback sang alias vps-jar nếu có
-                    sshArgs = string.Format("-p {0} -N -L {1}:localhost:5901 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 {2}@{3}",
+                    sshArgs = string.Format("-p {0} -N -L {1}:localhost:5901 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 {2}@{3}",
                         Program.VPS_PORT, currentLocalPort, Program.VPS_USER, Program.VPS_HOST);
                 }
 
@@ -305,20 +353,41 @@ namespace JarManagerStandalone
                     Arguments = sshArgs,
                     WindowStyle = ProcessWindowStyle.Hidden,
                     CreateNoWindow = true,
-                    UseShellExecute = false
+                    UseShellExecute = false,
+                    RedirectStandardError = true
                 };
                 tunnelProcess = Process.Start(psi);
-                System.Threading.Thread.Sleep(700);
+
+                // Chờ đợi chủ động cho đến khi port tunnel thực sự được lắng nghe (tối đa 6 giây)
+                for (int i = 0; i < 30; i++)
+                {
+                    System.Threading.Thread.Sleep(200);
+                    if (!IsPortFree(currentLocalPort))
+                    {
+                        return true; // SSH Tunnel đã sẵn sàng!
+                    }
+                    if (tunnelProcess.HasExited)
+                    {
+                        string err = tunnelProcess.StandardError.ReadToEnd();
+                        MessageBox.Show("Khong the ket noi den VPS qua SSH:\n" + err, "Loi Ket Noi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return false;
+                    }
+                }
+                return true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Khong the khoi tao SSH Tunnel: " + ex.Message, "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
             }
         }
 
         private void OpenGameScreen()
         {
-            EnsureTunnel();
+            if (!EnsureTunnel())
+            {
+                return;
+            }
 
             // Kích hoạt Active Mode (tối đa độ nhạy, 60 FPS, focus cửa sổ game)
             System.Threading.ThreadPool.QueueUserWorkItem(state =>
@@ -364,15 +433,19 @@ namespace JarManagerStandalone
         {
             try
             {
+                if (File.Exists(keyFilePath))
+                {
+                    SecureKeyPermissions(keyFilePath);
+                }
                 string sshArgs;
                 if (File.Exists(keyFilePath) && new FileInfo(keyFilePath).Length > 0)
                 {
-                    sshArgs = string.Format("-i \"{0}\" -p {1} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {2}@{3} \"{4}\"",
+                    sshArgs = string.Format("-i \"{0}\" -p {1} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 {2}@{3} \"{4}\"",
                         keyFilePath, Program.VPS_PORT, Program.VPS_USER, Program.VPS_HOST, cmd);
                 }
                 else
                 {
-                    sshArgs = string.Format("-p {0} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {1}@{2} \"{3}\"",
+                    sshArgs = string.Format("-p {0} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 {1}@{2} \"{3}\"",
                         Program.VPS_PORT, Program.VPS_USER, Program.VPS_HOST, cmd);
                 }
 
