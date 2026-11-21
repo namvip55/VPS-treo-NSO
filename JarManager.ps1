@@ -49,7 +49,8 @@ function Open-GameScreen {
         $vncPath = Join-Path $PSScriptRoot "vncviewer.exe"
     }
     if (Test-Path $vncPath) {
-        $vncArgs = "localhost:5901 -PreferredEncoding=Tight -QualityLevel=6 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1"
+        # Tối ưu độ mượt 60 FPS: -NoJPEG=1 loại bỏ nén ảnh mờ, tăng tốc CPU, nét từng pixel
+        $vncArgs = "localhost:5901 -PreferredEncoding=Tight -NoJPEG=1 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1"
         Start-Process -FilePath $vncPath -ArgumentList $vncArgs
     } else {
         [System.Windows.Forms.MessageBox]::Show("Khong tim thay file vncviewer.exe!", "Loi", "OK", "Error")

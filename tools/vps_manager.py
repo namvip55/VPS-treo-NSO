@@ -118,7 +118,8 @@ def cmd_update_game(args):
             print(f"[!] File JAR khong ton tai: {jar_path}")
             return
         dest_local_jar = os.path.join(vps_dir, os.path.basename(jar_path))
-        shutil.copy2(jar_path, dest_local_jar)
+        if os.path.abspath(jar_path) != os.path.abspath(dest_local_jar):
+            shutil.copy2(jar_path, dest_local_jar)
         jar_path = dest_local_jar
     else:
         # Lấy file game từ thư mục servers/<vps_id>/

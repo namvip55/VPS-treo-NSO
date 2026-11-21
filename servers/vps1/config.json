@@ -1,13 +1,11 @@
 {
-  "id": "vps1",
-  "name": "VPS Chinh (Nam)",
-  "hostname": "node-h3og603c",
+  "name": "VPS Chinh (Node-h3og603c)",
+  "dir": "servers/vps1",
   "host": "14.250.250.229",
   "port": 12724,
   "user": "root",
   "key": "~/.ssh/id_ed25519_jar",
-  "game_file": "nepsilon.jar",
+  "game": "nepsilon.jar",
   "game_title": "NSO GEMINI",
-  "accounts": ["acc1"],
-  "notes": "VPS Chinh - Chay song song Server NSO Java 17 + Client Treo Game 24/7"
+  "notes": "Chay Server NSO + Client nepsilon.jar"
 }

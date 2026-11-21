@@ -24,9 +24,12 @@ if [ "$TOTAL_RAM_MB" -le 1100 ] || [ "$AVAILABLE_RAM_MB" -le 600 ]; then
     # Cấu hình tối thiểu: Ép RAM cực nhẹ, triệt tiêu tải JIT
     JAVA_OPTS="-XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xms16m -Xmx32m"
 else
-    # Cấu hình tiêu chuẩn khi VPS còn nhiều RAM rảnh rỗi
+    # Cấu hình tiêu chuẩn khi VPS còn nhiều RAM rảnh rỗi (mượt mà, không bị bóp)
     JAVA_OPTS="-XX:+UseSerialGC -Xms32m -Xmx64m"
 fi
+
+# Tối ưu hóa pipeline đồ họa Java2D trên màn hình ảo X11 (giảm tải CPU, tăng độ mượt)
+JAVA_OPTS="$JAVA_OPTS -Dsun.java2d.pmoffscreen=false -Dsun.java2d.xrender=false"
 
 # Tự động trích xuất MIDlet class từ MANIFEST.MF nếu có để vào thẳng game
 MIDLET_CLASS=$(unzip -p "$JAR" META-INF/MANIFEST.MF 2>/dev/null | grep -i '^MIDlet-1:' | cut -d',' -f3 | tr -d ' \r\n')

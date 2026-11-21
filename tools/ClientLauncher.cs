@@ -324,7 +324,8 @@ namespace JarManagerStandalone
 
             if (File.Exists(vncPath))
             {
-                string vncArgs = string.Format("localhost:{0} -PreferredEncoding=Tight -QualityLevel=6 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1", currentLocalPort);
+                // Tối ưu độ mượt 60 FPS: -NoJPEG=1 loại bỏ nén ảnh mờ, tăng tốc CPU, nét từng pixel
+                string vncArgs = string.Format("localhost:{0} -PreferredEncoding=Tight -NoJPEG=1 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1", currentLocalPort);
                 Process.Start(vncPath, vncArgs);
             }
             else
