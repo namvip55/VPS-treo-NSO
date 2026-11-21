@@ -31,8 +31,10 @@ fi
 # Tối ưu hóa pipeline đồ họa Java2D trên màn hình ảo X11 (giảm tải CPU, tăng độ mượt)
 JAVA_OPTS="$JAVA_OPTS -Dsun.java2d.pmoffscreen=false -Dsun.java2d.xrender=false"
 
-# Tự động trích xuất MIDlet class từ MANIFEST.MF nếu có để vào thẳng game
+# Tự động trích xuất MIDlet class và tên game từ MANIFEST.MF nếu có để vào thẳng game
 MIDLET_CLASS=$(unzip -p "$JAR" META-INF/MANIFEST.MF 2>/dev/null | grep -i '^MIDlet-1:' | cut -d',' -f3 | tr -d ' \r\n')
+MIDLET_NAME=$(unzip -p "$JAR" META-INF/MANIFEST.MF 2>/dev/null | grep -i '^MIDlet-Name:' | cut -d':' -f2 | tr -d '\r\n' | sed 's/^ *//')
+WINDOW_TITLE="${MIDLET_NAME:-$(basename "$JAR" .jar)}"
 
 export DISPLAY=:1
 if [ -n "$MIDLET_CLASS" ]; then
@@ -49,7 +51,7 @@ echo "STARTED:$NEW_PID"
     sleep 2
     WIDS=$(xdotool search --pid "$NEW_PID" 2>/dev/null)
     for W in $WIDS; do
-        xdotool set_window --name "NSO GEMINI" "$W" 2>/dev/null
+        xdotool set_window --name "$WINDOW_TITLE" "$W" 2>/dev/null
         wmctrl -ir "$W" -b add,maximized_vert,maximized_horz 2>/dev/null
         xdotool windowactivate "$W" 2>/dev/null
         sleep 0.5

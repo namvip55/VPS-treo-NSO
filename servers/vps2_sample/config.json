@@ -1,13 +1,15 @@
 {
   "id": "vps2_sample",
   "name": "VPS Khach Mau (Hoi Uc)",
-  "hostname": "node-sample",
+  "dir": "servers/vps2_sample",
   "host": "14.236.172.236",
   "port": 10892,
   "user": "root",
   "key": "~/.ssh/id_ed25519_jar",
-  "game_file": "HoiUc220.jar",
+  "game": "HoiUc220.jar",
   "game_title": "Hoi Uc NSO",
-  "accounts": ["acc1"],
+  "accounts": [
+    "acc1"
+  ],
   "notes": "VPS mau treo game HoiUc220.jar rieng biet"
 }

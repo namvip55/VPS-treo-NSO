@@ -16,7 +16,7 @@ Skill này cung cấp quy trình và tập lệnh tự động hóa 100% để d
 Khi mua VPS mới trên trang quản trị (ví dụ `vps1k.net`), bạn chỉ cần lấy 3 thông số:
 1. **IP / Host Remote:** (Ví dụ: `remote.io.vn` hoặc `103.xxx.xxx.xxx`)
 2. **Cổng SSH (Port NAT):** (Ví dụ: `10653` hoặc cổng mới như `10892`)
-3. **Mật khẩu root:** (Ví dụ: `Namvip55@` hoặc mật khẩu mới)
+3. **Mật khẩu root:** (Ví dụ: `<ROOT_PASSWORD>`)
 
 ---
 

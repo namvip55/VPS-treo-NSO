@@ -4,6 +4,7 @@
 MULTI-VPS MANAGER - QUẢN LÝ & CẬP NHẬT TỪNG VPS RIÊNG BIỆT (CHỐNG NHẦM GAME)
 Cấu trúc phân vùng độc lập: Mỗi VPS có thư mục riêng trong servers/<vps_id>/
 Agent và User có thể cập nhật, kiểm tra hoặc xuất client cho từng VPS một cách tuyệt đối an toàn.
+Không sử dụng shell=True (chống Shell Injection) và xác thực chặt chẽ kết quả trả về.
 """
 
 import os
@@ -18,13 +19,30 @@ REGISTRY_FILE = os.path.join(BASE_DIR, "vps_registry.json")
 SERVERS_DIR = os.path.join(BASE_DIR, "servers")
 
 def load_registry():
-    if not os.path.exists(REGISTRY_FILE):
-        return {"active_vps": "vps1", "servers": {}}
-    with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-        if "servers" not in data:
-            data = {"active_vps": list(data.keys())[0] if data else "vps1", "servers": data}
-        return data
+    data = {"active_vps": "vps1", "servers": {}}
+    if os.path.exists(REGISTRY_FILE):
+        with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if "servers" not in data:
+                data = {"active_vps": list(data.keys())[0] if data else "vps1", "servers": data}
+
+    # Tự động đọc và đồng bộ thông tin từ servers/<id>/config.json nếu có
+    if os.path.exists(SERVERS_DIR):
+        for entry in os.listdir(SERVERS_DIR):
+            vps_sub = os.path.join(SERVERS_DIR, entry)
+            cfg_path = os.path.join(vps_sub, "config.json")
+            if os.path.isdir(vps_sub) and os.path.exists(cfg_path):
+                try:
+                    with open(cfg_path, "r", encoding="utf-8") as cf:
+                        sub_cfg = json.load(cf)
+                        vps_id = sub_cfg.get("id", entry)
+                        if vps_id in data.get("servers", {}):
+                            data["servers"][vps_id].update(sub_cfg)
+                        else:
+                            data.setdefault("servers", {})[vps_id] = sub_cfg
+                except Exception:
+                    pass
+    return data
 
 def save_registry(data):
     with open(REGISTRY_FILE, "w", encoding="utf-8") as f:
@@ -34,18 +52,27 @@ def get_servers():
     reg = load_registry()
     return reg.get("servers", {})
 
-def get_ssh_cmd(vps_cfg, remote_cmd):
+def build_ssh_cmd_args(vps_cfg, remote_cmd):
     key = os.path.expanduser(vps_cfg.get("key", "~/.ssh/id_ed25519_jar"))
     host = vps_cfg["host"]
     port = vps_cfg["port"]
     user = vps_cfg.get("user", "root")
-    
-    key_opt = f'-i "{key}" ' if os.path.exists(key) else ''
-    return f'ssh {key_opt}-p {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 {user}@{host} "{remote_cmd}"'
+
+    cmd = [
+        "ssh",
+        "-p", str(port),
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "ConnectTimeout=8"
+    ]
+    if os.path.exists(key):
+        cmd.extend(["-i", key])
+    cmd.extend([f"{user}@{host}", remote_cmd])
+    return cmd
 
 def run_ssh(vps_cfg, remote_cmd, capture=True):
-    cmd = get_ssh_cmd(vps_cfg, remote_cmd)
-    res = subprocess.run(cmd, shell=True, capture_output=capture, text=True)
+    cmd = build_ssh_cmd_args(vps_cfg, remote_cmd)
+    res = subprocess.run(cmd, shell=False, capture_output=capture, text=True)
     return res
 
 def cmd_list(args):
@@ -58,7 +85,8 @@ def cmd_list(args):
     for vps_id, cfg in servers.items():
         hp = f"{cfg.get('host')}:{cfg.get('port')}"
         is_act = " [*] ACTIVE" if vps_id == active else ""
-        print(f"{vps_id:<12} | {cfg.get('name', 'N/A'):<24} | {hp:<20} | {cfg.get('game', 'game.jar'):<15} | {is_act}")
+        game_name = cfg.get("game", cfg.get("game_file", "game.jar"))
+        print(f"{vps_id:<12} | {cfg.get('name', 'N/A'):<24} | {hp:<20} | {game_name:<15} | {is_act}")
     print("=" * 85 + "\n")
 
 def cmd_status(args):
@@ -72,7 +100,6 @@ def cmd_status(args):
             return
         targets = [(args.vps, servers[args.vps])]
     else:
-        # Default to active_vps
         reg = load_registry()
         act = reg.get("active_vps")
         if act and act in servers:
@@ -104,14 +131,11 @@ def cmd_update_game(args):
     if vps_id not in servers:
         print(f"[!] Khong tim thay VPS '{vps_id}' trong registry.")
         return
-    
+
     cfg = servers[vps_id]
     vps_dir = os.path.join(SERVERS_DIR, vps_id)
     os.makedirs(vps_dir, exist_ok=True)
 
-    # Xác định file JAR nguồn:
-    # Nếu truyền --jar thì copy file đó vào servers/<vps_id>/
-    # Nếu không truyền --jar thì lấy file game mặc định từ servers/<vps_id>/
     jar_path = args.jar
     if jar_path:
         if not os.path.exists(jar_path):
@@ -122,11 +146,9 @@ def cmd_update_game(args):
             shutil.copy2(jar_path, dest_local_jar)
         jar_path = dest_local_jar
     else:
-        # Lấy file game từ thư mục servers/<vps_id>/
-        game_name = cfg.get("game", "game.jar")
+        game_name = cfg.get("game", cfg.get("game_file", "game.jar"))
         jar_path = os.path.join(vps_dir, game_name)
         if not os.path.exists(jar_path):
-            # Fallback nếu ở root
             root_fallback = os.path.join(BASE_DIR, game_name)
             if os.path.exists(root_fallback):
                 shutil.copy2(root_fallback, jar_path)
@@ -138,25 +160,45 @@ def cmd_update_game(args):
     jar_name = os.path.basename(jar_path)
     print(f"\n[*] ĐANG CẬP NHẬT GAME CHO [{vps_id} - {cfg.get('name')}]")
     print(f"    File JAR: {jar_path}")
-    print(f"    Dích đến: {cfg['host']}:{cfg['port']}:/opt/jar-manager/games/{jar_name}")
+    print(f"    Đích đến: {cfg['host']}:{cfg['port']}:/opt/jar-manager/games/{jar_name}")
 
     key = os.path.expanduser(cfg.get("key", "~/.ssh/id_ed25519_jar"))
     host = cfg["host"]
     port = cfg["port"]
     user = cfg.get("user", "root")
-    key_opt = f'-i "{key}" ' if os.path.exists(key) else ''
-    scp_cmd = f'scp {key_opt}-P {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 "{jar_path}" {user}@{host}:/opt/jar-manager/games/{jar_name}'
-    
+
+    scp_cmd = [
+        "scp",
+        "-P", str(port),
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "ConnectTimeout=8"
+    ]
+    if os.path.exists(key):
+        scp_cmd.extend(["-i", key])
+    scp_cmd.extend([jar_path, f"{user}@{host}:/opt/jar-manager/games/{jar_name}"])
+
     print(f">> 1. Uploading file game sang VPS...")
-    subprocess.run(scp_cmd, shell=True, check=True)
+    res_upload = subprocess.run(scp_cmd, shell=False, capture_output=True, text=True)
+    if res_upload.returncode != 0:
+        print(f"[!] Upload file game that bai:\n{res_upload.stderr or res_upload.stdout}")
+        return
 
     print(f">> 2. Cap nhat symlink game.jar tren VPS...")
-    run_ssh(cfg, f"ln -sf /opt/jar-manager/games/{jar_name} /opt/jar-manager/games/game.jar", capture=False)
+    res_symlink = run_ssh(cfg, f"ln -sf /opt/jar-manager/games/{jar_name} /opt/jar-manager/games/game.jar", capture=True)
+    if res_symlink.returncode != 0:
+        print(f"[!] Cap nhat symlink that bai:\n{res_symlink.stderr or res_symlink.stdout}")
+        return
 
     if args.restart_acc:
         acc = args.restart_acc
         print(f">> 3. Restarting account [{acc}] tren VPS...")
-        run_ssh(cfg, f"/opt/jar-manager/scripts/stop-acc.sh {acc} && sleep 1 && /opt/jar-manager/scripts/start-acc.sh {acc}", capture=False)
+        res_restart = run_ssh(cfg, f"/opt/jar-manager/scripts/stop-acc.sh {acc} && sleep 1 && /opt/jar-manager/scripts/start-acc.sh {acc}", capture=True)
+        if res_restart.returncode != 0:
+            print(f"[!] Khoi dong lai account [{acc}] that bai:\n{res_restart.stderr or res_restart.stdout}")
+            return
+        if res_restart.stdout:
+            print(f"   {res_restart.stdout.strip()}")
 
     # Cập nhật thông tin vào registry & file config riêng
     cfg["game"] = jar_name
@@ -164,7 +206,6 @@ def cmd_update_game(args):
     reg["servers"][vps_id] = cfg
     save_registry(reg)
 
-    # Lưu config.json riêng trong servers/<vps_id>/
     local_cfg_path = os.path.join(vps_dir, "config.json")
     with open(local_cfg_path, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
@@ -184,16 +225,32 @@ def cmd_update_scripts(args):
     host = cfg["host"]
     port = cfg["port"]
     user = cfg.get("user", "root")
-    
+
     scripts_dir = os.path.join(BASE_DIR, "scripts")
     script_files = [os.path.join(scripts_dir, f) for f in os.listdir(scripts_dir) if f.endswith(".sh")]
-    quoted_files = " ".join([f'"{f}"' for f in script_files])
 
-    key_opt = f'-i "{key}" ' if os.path.exists(key) else ''
-    scp_cmd = f'scp {key_opt}-P {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 {quoted_files} {user}@{host}:/opt/jar-manager/scripts/'
+    scp_cmd = [
+        "scp",
+        "-P", str(port),
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "ConnectTimeout=8"
+    ]
+    if os.path.exists(key):
+        scp_cmd.extend(["-i", key])
+    scp_cmd.extend(script_files)
+    scp_cmd.append(f"{user}@{host}:/opt/jar-manager/scripts/")
 
-    subprocess.run(scp_cmd, shell=True, check=True)
-    run_ssh(cfg, "sed -i 's/\\r$//' /opt/jar-manager/scripts/*.sh && chmod +x /opt/jar-manager/scripts/*.sh", capture=False)
+    res_scp = subprocess.run(scp_cmd, shell=False, capture_output=True, text=True)
+    if res_scp.returncode != 0:
+        print(f"[!] Dong bo scripts that bai:\n{res_scp.stderr or res_scp.stdout}")
+        return
+
+    res_perm = run_ssh(cfg, "sed -i 's/\\r$//' /opt/jar-manager/scripts/*.sh && chmod +x /opt/jar-manager/scripts/*.sh", capture=True)
+    if res_perm.returncode != 0:
+        print(f"[!] Phan quyen scripts that bai:\n{res_perm.stderr or res_perm.stdout}")
+        return
+
     print(f"[+] Dong bo scripts thanh cong cho VPS [{vps_id}]!\n")
 
 def cmd_export_client(args):
@@ -207,6 +264,7 @@ def cmd_export_client(args):
     title = cfg.get("game_title", cfg.get("name", "NSO Client"))
     key = cfg.get("key", "")
     mode = args.mode or "exe"
+    acc = args.acc or (cfg.get("accounts", ["acc1"])[0] if cfg.get("accounts") else "acc1")
 
     cmd = [
         sys.executable,
@@ -214,11 +272,15 @@ def cmd_export_client(args):
         "--host", cfg["host"],
         "--port", str(cfg["port"]),
         "--title", title,
+        "--acc", acc,
         "--mode", mode
     ]
+    if args.push_pubkey:
+        cmd.append("--push-pubkey")
     if key:
-        cmd.extend(["--key", os.path.expanduser(key)])
-    subprocess.run(cmd)
+        cmd.extend(["--admin-key", os.path.expanduser(key)])
+
+    subprocess.run(cmd, shell=False)
 
 def main():
     parser = argparse.ArgumentParser(description="Multi-VPS Manager - Quản lý và cập nhật từng VPS riêng biệt")
@@ -249,7 +311,9 @@ def main():
     # export-client
     p_export = subparsers.add_parser("export-client", help="Đóng gói bộ cài EXE/ZIP giao cho khách của VPS đó")
     p_export.add_argument("--vps", required=True, help="ID của VPS")
+    p_export.add_argument("--acc", help="Tên account gán vào app (mặc định theo config VPS)")
     p_export.add_argument("--mode", choices=["exe", "zip"], default="exe", help="Định dạng xuất (exe hoặc zip)")
+    p_export.add_argument("--push-pubkey", action="store_true", help="Tự động nạp public key an toàn vào VPS")
     p_export.set_defaults(func=cmd_export_client)
 
     args = parser.parse_args()

@@ -2,6 +2,7 @@
   "active_vps": "vps1",
   "servers": {
     "vps1": {
+      "id": "vps1",
       "name": "VPS Chinh (Node-h3og603c)",
       "dir": "servers/vps1",
       "host": "14.250.250.229",
@@ -10,9 +11,13 @@
       "key": "~/.ssh/id_ed25519_jar",
       "game": "nepsilon.jar",
       "game_title": "NSO GEMINI",
+      "accounts": [
+        "acc1"
+      ],
       "notes": "Chay Server NSO + Client nepsilon.jar"
     },
     "vps2_sample": {
+      "id": "vps2_sample",
       "name": "VPS Khach Mau (Hoi Uc)",
       "dir": "servers/vps2_sample",
       "host": "14.236.172.236",
@@ -21,7 +26,10 @@
       "key": "~/.ssh/id_ed25519_jar",
       "game": "HoiUc220.jar",
       "game_title": "Hoi Uc NSO",
-      "notes": "VPS mau chay rieng HoiUc220.jar"
+      "accounts": [
+        "acc1"
+      ],
+      "notes": "VPS mau treo game HoiUc220.jar rieng biet"
     }
   }
 }

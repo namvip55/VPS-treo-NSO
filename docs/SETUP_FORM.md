@@ -22,7 +22,7 @@ Skill này là **khung mẫu thiết kế chuẩn (Reference Blueprint)** của 
 * **Host Remote:** `remote.io.vn`
 * **Port NAT (SSH):** `10653` (ánh xạ vào cổng SSH 22 nội bộ qua giao diện `eth0.50`)
 * **IP nội bộ (VLAN):** `10.50.2.141` | **Gateway:** `10.50.0.1` | **Subnet Mask:** `255.255.240.0`
-* **User quản trị:** `root` | **Mật khẩu:** `Namvip55@`
+* **User quản trị:** `root` | **Mật khẩu:** `<ROOT_PASSWORD>`
 * **SSH Key cá nhân:** `C:\Users\Admin\.ssh\id_ed25519_jar` (Ed25519) | Alias: `vps-jar` trong `~/.ssh/config`
 * **Lệnh cấp mạng bắt buộc khi cài mới:** `echo -e "1\ny" | /usr/local/bin/changeip`
 
@@ -82,7 +82,7 @@ geometry=800x600
 depth=16
 localhost
 SecurityTypes=None
-FrameRate=30
+FrameRate=60
 CompareFB=1
 RemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b
 ```
@@ -464,7 +464,7 @@ run_ssh('mkdir -p /opt/jar-manager/{emulator,games,profiles,scripts} /root/.vnc 
 run_ssh('wget -O /opt/jar-manager/emulator/microemulator.jar https://repo1.maven.org/maven2/org/microemu/microemulator/2.0.4/microemulator-2.0.4.jar')
 
 # Config VNC
-vnc_cfg = "geometry=800x600\\ndepth=16\\nlocalhost\\nSecurityTypes=None\\nFrameRate=30\\nCompareFB=1\\nRemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b"
+vnc_cfg = "geometry=800x600\\ndepth=16\\nlocalhost\\nSecurityTypes=None\\nFrameRate=60\\nCompareFB=1\\nRemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b"
 run_ssh(f'printf "{vnc_cfg}\\n" > /root/.vnc/config')
 
 # Systemd VNC

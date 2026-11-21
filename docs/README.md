@@ -13,16 +13,17 @@ Hệ thống chuyên dụng tối ưu hóa tài nguyên phần cứng để treo
 | **Host Remote** | `remote.io.vn` |
 | **Cổng SSH (Port NAT)** | `10653` (Ánh xạ vào cổng SSH 22 nội bộ) |
 | **User quản trị** | `root` |
-| **Mật khẩu quản trị gốc** | `Namvip55@` *(Đã nạp SSH Key Ed25519 không cần gõ mật khẩu)* |
+| **Mật khẩu quản trị gốc** | `<ROOT_PASSWORD>` *(Đã nạp SSH Key Ed25519 không cần gõ mật khẩu)* |
 | **SSH Key cá nhân** | `C:\Users\Admin\.ssh\id_ed25519_jar` (Alias: `vps-jar`) |
 | **Lệnh nhận mạng** | `echo -e "1\ny" \| /usr/local/bin/changeip` (Bắt buộc chạy khi cài mới) |
 | **Màn hình ảo (VNC)** | Display `:1` (Cổng nội bộ `5901`), độ phân giải chuẩn **800x600 -depth 16** |
-| **Tốc độ khung hình VNC** | Cố định `FrameRate=30` + `CompareFB=1` (Giảm 50% CPU và băng thông) |
+| **Tốc độ khung hình VNC** | Cố định `FrameRate=60` + `CompareFB=1` + `-NoJPEG=1` (Hiển thị 60 FPS siêu mượt, nét từng pixel, giảm 50% CPU) |
+| **Cơ chế điều tiết tài nguyên** | Dual-Mode: Active Mode (`renice 0` khi xem) / Idle Mode (`renice 15` khi treo ngầm 24/7) |
 | **Cơ chế truy cập VNC** | SSH Tunneling qua `localhost:5901` (Bảo mật 100%, không mở port VNC ra internet) |
 | **Khung vẽ game** | MicroEmulator 2.0.4 (`--resizableDevice 800 550`), 1 cửa sổ duy nhất toàn màn hình |
 | **Bộ dọn rác Java** | `-XX:+UseSerialGC` (Loại bỏ luồng dọn rác nền, CPU giảm còn < 5%) |
-| **File game hiện tại** | `HoiUc220.jar` (Ninja School Online - Bản Hồi Ức 220 tại `/opt/jar-manager/games/`) |
-| **Client App** | `JarManager.exe` (Giao diện 1-click tại Desktop và `C:\JarManager\`) |
+| **File game mặc định** | Symlink `/opt/jar-manager/games/game.jar` (quản lý độc lập theo từng node trong `servers/`) |
+| **Client App** | Ứng dụng độc lập biên dịch từ `tools/ClientLauncher.cs` (Đóng gói 1-click qua `tools/package_client.py`) |
 
 ---
 

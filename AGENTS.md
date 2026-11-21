@@ -13,10 +13,10 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
 * **Băng thông:** 40 Mbps (5 MB/s)
 * **Hostname:** `node-h3og603c`
 * **Loại mạng:** IP NAT (Việt Nam)
-* **Host Remote:** `remote.io.vn` / `14.250.250.229`
+* **Host Remote:** `14.250.250.229` (IPv4 trực tiếp, TUYỆT ĐỐI không dùng `remote.io.vn` do Round-Robin DNS)
 * **Port NAT (SSH & Game):** `12724` (ánh xạ qua bộ ghép kênh sslh trên cổng 3389 vào SSH 22 & Game 12724)
-* **User quản trị:** `root` | **Mật khẩu:** `SPF2#!xGBnKk8BwL`
-* **SSH Key cá nhân:** `C:\Users\Admin\.ssh\id_ed25519_jar` (Ed25519) | Alias: `vps-jar` trong `~/.ssh/config`
+* **User quản trị:** `root` | **Mật khẩu:** `<ROOT_PASSWORD>` *(Xác thực qua SSH Key cá nhân)*
+* **SSH Key quản trị:** `C:\Users\Admin\.ssh\id_ed25519_jar` (Ed25519) | Alias: `vps-jar` trong `~/.ssh/config`
 * **Tên miền máy chủ:** `nguyenthanhnam376.id.vn`
 * **Game JAR:** `nepsilon.jar` (Symlink: `game.jar -> nepsilon.jar`)
 
@@ -50,9 +50,9 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
    * Tránh việc các tài khoản đè mật khẩu hoặc cài đặt lên nhau.
 
 7. **TỰ ĐỘNG CHỌN CẤU HÌNH TỐI THIỂU CHO VPS YẾU (CẤU HÌNH 1:1 - 1 vCPU / 1GB RAM HOẶC RAM KHẢ DỤNG THẤP):**
-   * Khi kiểm tra tài nguyên VPS thấy CPU = 1 core, tổng RAM $\le$ 1024 MB, hoặc RAM khả dụng (Available RAM) thấp, hệ thống **BẮT BUỘC TỰ ĐỘNG ÁP DỤNG PROFILE SETUP THẤP NHẤT (ULTRA-LOW PROFILE)**:
+   * Khi kiểm tra tài nguyên VPS thấy CPU = 1 core, tổng RAM $\le$ 1100 MB, hoặc RAM khả dụng (Available RAM) $\le$ 600 MB, hệ thống **BẮT BUỘC TỰ ĐỘNG ÁP DỤNG PROFILE SETUP THẤP NHẤT (ULTRA-LOW PROFILE)**:
      - **Java Heap MicroEmulator:** Ép RAM ở mức cực thấp `-Xms16m -Xmx32m` (tối đa 48m), kích hoạt `-XX:+UseSerialGC -XX:TieredStopAtLevel=1` để triệt tiêu ngốn RAM của bộ biên dịch JIT.
-     - **Màn hình ảo VNC:** Cố định `800x600 -depth 16`, hạ `FrameRate=15` (hoặc 20 FPS), `CompareFB=1` giúp giảm 65% tải CPU cho 1 vCPU.
+     - **Màn hình ảo VNC:** Cố định `800x600 -depth 16`, `CompareFB=1` giúp giảm 65% tải CPU cho 1 vCPU.
      - **Kích hoạt 2GB Swap khẩn cấp:** Đảm bảo có Swapfile 2GB (`vm.swappiness=10`) để bảo hiểm bộ nhớ, chống OOM-Killer tắt game khi map đông người.
      - **Giới hạn số Acc:** Khuyến nghị chỉ treo 1 tài khoản (tối đa 2 acc nhẹ).
 
@@ -65,9 +65,16 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
      - Toàn bộ hoạt động treo game chỉ được phép diễn ra khép kín trong `/opt/jar-manager/` và màn hình ảo TigerVNC Display `:1`.
      - Phải luôn linh hoạt thích ứng theo **RAM khả dụng (Available RAM)** thực tế của VPS để cùng chung sống hòa bình với các dịch vụ khác mà không gây nghẽn máy chủ.
 
+9. **NGUYÊN TẮC BẢO MẬT KHÓA SSH GIAO KHÁCH (CLIENT KEY ISOLATION & WRAPPER):**
+   * Tuyệt đối **KHÔNG cấp khóa SSH của admin (`id_ed25519_jar`) vào file EXE hoặc gói ZIP giao cho khách**.
+   * Mỗi khách hàng/máy chủ phải sinh một cặp khóa Ed25519 riêng.
+   * Public key của khách đưa lên VPS **BẮT BUỘC gán wrapper bảo vệ** trong `/root/.ssh/authorized_keys`:
+     `command="/opt/jar-manager/scripts/client-cmd-wrapper.sh",permitopen="127.0.0.1:5901",no-agent-forwarding,no-X11-forwarding,no-user-rc ssh-ed25519 ...`
+   * Nhờ đó, khách chỉ được mở SSH tunnel cổng VNC 5901 và gọi các lệnh quản lý game được chỉ định; cấm 100% quyền truy cập shell root.
+
 ---
 
-## 🖥️ 3. KIẾN TRÚC HIỂN THỊ CHỐNG LAG (ZERO-LAG ENGINE)
+## 🖥️ 3. KIẾN TRÚC HIỂN THỊ CHỐNG LAG (ZERO-LAG 60 FPS ENGINE)
 
 * **TigerVNC Server:**
   * Dịch vụ systemd: `/etc/systemd/system/vncserver.service`
@@ -79,11 +86,16 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
     depth=16
     localhost
     SecurityTypes=None
-    FrameRate=30
+    FrameRate=60
     CompareFB=1
     RemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b
     ```
-  * `FrameRate=30` + `CompareFB=1`: Giảm 50% CPU và băng thông so với 60 FPS mặc định.
+  * `FrameRate=60` + `CompareFB=1`: Tốc độ 60 khung hình/giây cực mượt kết hợp thuật toán so sánh framebuffer giảm 50% CPU và băng thông.
+
+* **Cơ chế Điều Tiết Tài Nguyên Động Hai Chế Độ (Dual-Mode Dynamic Scaling):**
+  * **Chế độ Thao tác (Active Mode - `mode-active.sh`):** Khi người dùng mở VNC vào game, CPU được nâng ưu tiên (`renice -n 0`), focus cửa sổ game, hiển thị 60 FPS NoJPEG sắc nét từng pixel.
+  * **Chế độ Treo Ngầm (Idle Mode - `mode-idle.sh`):** Khi người dùng đóng cửa sổ game, tiến trình Java tự động hạ ưu tiên (`renice -n 15`), đưa mức tiêu thụ CPU về < 5% để máy chủ chạy 24/7 mát mẻ.
+  * **Bộ tự động điều tiết (`auto-power-save.sh`):** Kiểm tra kết nối VNC port 5901 và áp dụng chế độ phù hợp cho tất cả tài khoản.
 
 * **Bàn Phím Số NumPad Chuẩn 100% (Đã khắc phục lỗi phím ngược):**
   * **Phím 8:** Nhảy Lên (Gửi mã 2 vào game)
@@ -96,12 +108,14 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
 * **Giả Lập Java MicroEmulator 2.0.4:**
   * Khung vẽ Canvas: `--resizableDevice 800 550` (1 cửa sổ duy nhất chiếm trọn màn hình, nhân vật và chữ to rõ, không bị teo nhỏ).
   * Bộ dọn rác nhẹ: `-XX:+UseSerialGC` (CPU giảm xuống còn < 5%).
-  * Giới hạn RAM: `-Xms32m -Xmx64m`.
+  * Tùy biến RAM: Tự động chọn 32m-64m (bình thường) hoặc 16m-32m (Ultra-low).
 
-* **Client Windows ([JarManager.exe](file:///C:/JarManager/JarManager.exe)):**
-  * Tự động tạo SSH Tunnel qua cổng 5901.
+* **Client Điều Khiển Windows ([ClientLauncher.cs](tools/ClientLauncher.cs)):**
+  * Biên dịch bằng `csc.exe` (.NET 4.0) có sẵn trên Windows.
+  * Tự động tạo SSH Tunnel qua cổng nội bộ linh hoạt (5901..5950).
+  * Tự động set ACL cá nhân chống lỗi key permissions của OpenSSH.
   * Mở VNC Viewer với cờ tối ưu:
-    `localhost:5901 -PreferredEncoding=Tight -QualityLevel=6 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1`
+    `localhost:<port> -PreferredEncoding=Tight -NoJPEG=1 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1`
 
 ---
 
@@ -121,6 +135,10 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
 └── scripts/
     ├── start-acc.sh                # Bật game: start-acc.sh [tên_acc]
     ├── stop-acc.sh                 # Tắt game: stop-acc.sh [tên_acc]
+    ├── mode-active.sh              # Kích hoạt 60 FPS, renice 0 khi đang xem
+    ├── mode-idle.sh                # Hạ renice 15 khi treo ngầm 24/7
+    ├── auto-power-save.sh          # Tự động điều tiết active/idle theo kết nối
+    ├── client-cmd-wrapper.sh       # Giới hạn an toàn lệnh SSH cho khách
     ├── status-all.sh               # Xem trạng thái: status-all.sh
     └── system-info.sh              # Xem RAM, Swap, CPU: system-info.sh
 ```
@@ -145,7 +163,7 @@ Mỗi VPS sở hữu một không gian độc lập tuyệt đối:
 ```text
 servers/
 ├── vps1/                          # VPS Chính
-│   ├── config.json                # Thông số: Host, Port, Game, Key
+│   ├── config.json                # Thông số: Host, Port, Game, Key, Acc
 │   └── nepsilon.jar               # File game riêng của vps1
 └── vps2_sample/                   # VPS Khách mẫu
     ├── config.json                # Thông số riêng của vps2
