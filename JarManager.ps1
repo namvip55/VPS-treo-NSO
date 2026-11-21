@@ -44,6 +44,11 @@ function Ensure-Tunnel {
 
 function Open-GameScreen {
     Ensure-Tunnel
+    # Kích hoạt Active Mode (tối đa độ nhạy, 60 FPS, focus cửa sổ game)
+    [System.Threading.ThreadPool]::QueueUserWorkItem({
+        Invoke-Vps "/opt/jar-manager/scripts/mode-active.sh acc1" | Out-Null
+    }) | Out-Null
+
     $vncPath = "C:\JarManager\vncviewer.exe"
     if (-not (Test-Path $vncPath)) {
         $vncPath = Join-Path $PSScriptRoot "vncviewer.exe"
@@ -51,7 +56,18 @@ function Open-GameScreen {
     if (Test-Path $vncPath) {
         # Tối ưu độ mượt 60 FPS: -NoJPEG=1 loại bỏ nén ảnh mờ, tăng tốc CPU, nét từng pixel
         $vncArgs = "localhost:5901 -PreferredEncoding=Tight -NoJPEG=1 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1"
-        Start-Process -FilePath $vncPath -ArgumentList $vncArgs
+        $vncProc = Start-Process -FilePath $vncPath -ArgumentList $vncArgs -PassThru
+
+        # Khi đóng VNC: Tự động chuyển sang chế độ Treo Tiết Kiệm
+        [System.Threading.ThreadPool]::QueueUserWorkItem({
+            param($proc)
+            try {
+                if ($proc) {
+                    $proc.WaitForExit()
+                    Invoke-Vps "/opt/jar-manager/scripts/mode-idle.sh acc1" | Out-Null
+                }
+            } catch {}
+        }, $vncProc) | Out-Null
     } else {
         [System.Windows.Forms.MessageBox]::Show("Khong tim thay file vncviewer.exe!", "Loi", "OK", "Error")
     }
@@ -171,6 +187,7 @@ $btnStop.Add_Click({
 })
 
 $form.Add_FormClosing({
+    Invoke-Vps "/opt/jar-manager/scripts/mode-idle.sh acc1" | Out-Null
     if ($global:TunnelProcess -and -not $global:TunnelProcess.HasExited) {
         $global:TunnelProcess.Kill()
     }

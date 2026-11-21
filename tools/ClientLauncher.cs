@@ -242,7 +242,11 @@ namespace JarManagerStandalone
             };
             pnlHint.Controls.Add(lblHintBody);
 
-            this.FormClosing += (s, e) => CloseTunnel();
+            this.FormClosing += (s, e) =>
+            {
+                ExecuteSshCommand("/opt/jar-manager/scripts/mode-idle.sh acc1");
+                CloseTunnel();
+            };
         }
 
         private bool IsPortFree(int port)
@@ -316,6 +320,12 @@ namespace JarManagerStandalone
         {
             EnsureTunnel();
 
+            // Kích hoạt Active Mode (tối đa độ nhạy, 60 FPS, focus cửa sổ game)
+            System.Threading.ThreadPool.QueueUserWorkItem(state =>
+            {
+                ExecuteSshCommand("/opt/jar-manager/scripts/mode-active.sh acc1");
+            });
+
             string vncPath = vncExePath;
             if (!File.Exists(vncPath))
             {
@@ -326,7 +336,23 @@ namespace JarManagerStandalone
             {
                 // Tối ưu độ mượt 60 FPS: -NoJPEG=1 loại bỏ nén ảnh mờ, tăng tốc CPU, nét từng pixel
                 string vncArgs = string.Format("localhost:{0} -PreferredEncoding=Tight -NoJPEG=1 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1", currentLocalPort);
-                Process.Start(vncPath, vncArgs);
+                Process vncProcess = Process.Start(vncPath, vncArgs);
+
+                // Khi khách tắt cửa sổ VNC: tự động chuyển về chế độ Treo Tiết Kiệm & đóng tunnel
+                System.Threading.ThreadPool.QueueUserWorkItem(state =>
+                {
+                    try
+                    {
+                        if (vncProcess != null)
+                        {
+                            vncProcess.WaitForExit();
+                            // Khách đã đóng màn hình game -> chuyển về chế độ treo tiết kiệm 24/7
+                            ExecuteSshCommand("/opt/jar-manager/scripts/mode-idle.sh acc1");
+                            CloseTunnel();
+                        }
+                    }
+                    catch { }
+                });
             }
             else
             {
@@ -376,17 +402,8 @@ namespace JarManagerStandalone
                 }
             }
             catch { }
-
-            try
-            {
-                // Kill bat ky tien trinh ssh tunnel 5901 nao con sot lai
-                Process[] procs = Process.GetProcessesByName("ssh");
-                foreach (Process p in procs)
-                {
-                    // Tranh tat nham cac session ssh khac neu khong phai tunnel
-                }
-            }
-            catch { }
+            tunnelProcess = null;
+            currentLocalPort = 0;
         }
     }
 }
