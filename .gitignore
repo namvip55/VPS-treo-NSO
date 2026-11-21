@@ -3,3 +3,6 @@
 *.log
 .vscode/
 .idea/
+dist_clients/
+tools/*.key*
+tools/*.exe
