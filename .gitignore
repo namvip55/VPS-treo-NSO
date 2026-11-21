@@ -7,3 +7,8 @@ dist_clients/
 tools/*.key*
 *.exe
 vncviewer.exe
+*expressions*.txt
+*rules*.txt
+*.secrets*
+__pycache__/
+*.pyc

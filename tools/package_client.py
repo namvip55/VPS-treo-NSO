@@ -57,14 +57,21 @@ def push_client_pubkey_to_vps(host, port, pub_key_content, admin_key_path="~/.ss
     restricted_entry = (
         f'command="/opt/jar-manager/scripts/client-cmd-wrapper.sh",'
         f'permitopen="127.0.0.1:5901",'
-        f'no-agent-forwarding,no-X11-forwarding,no-user-rc '
+        f'no-agent-forwarding,no-X11-forwarding,no-user-rc,no-pty '
         f'{pub_key_content.strip()}'
     )
 
+    parts = pub_key_content.strip().split()
+    if len(parts) < 2 or not parts[0].startswith("ssh-") or len(parts[1]) < 20:
+        raise ValueError("Public key khong hop le, huy nap de tranh mat authorized_keys!")
+    pub_key_body = parts[1]
+
+    # Làm sạch dòng cũ chứa public key này (nếu từng nạp dạng un-wrapped) và ghi đè dòng bọc wrapper mới
     remote_cmd = (
-        f'mkdir -p /root/.ssh && chmod 700 /root/.ssh && '
-        f'grep -qF "{pub_key_content.strip()}" /root/.ssh/authorized_keys 2>/dev/null || '
-        f'echo \'{restricted_entry}\' >> /root/.ssh/authorized_keys && '
+        f'mkdir -p /root/.ssh && chmod 700 /root/.ssh && touch /root/.ssh/authorized_keys && '
+        f'grep -vF "{pub_key_body}" /root/.ssh/authorized_keys > /root/.ssh/authorized_keys.tmp 2>/dev/null || true; '
+        f'echo \'{restricted_entry}\' >> /root/.ssh/authorized_keys.tmp && '
+        f'mv /root/.ssh/authorized_keys.tmp /root/.ssh/authorized_keys && '
         f'chmod 600 /root/.ssh/authorized_keys'
     )
 

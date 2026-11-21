@@ -10,6 +10,7 @@ Không sử dụng shell=True (chống Shell Injection) và xác thực chặt c
 import os
 import sys
 import json
+import shlex
 import argparse
 import subprocess
 import shutil
@@ -185,15 +186,17 @@ def cmd_update_game(args):
         return
 
     print(f">> 2. Cap nhat symlink game.jar tren VPS...")
-    res_symlink = run_ssh(cfg, f"ln -sf /opt/jar-manager/games/{jar_name} /opt/jar-manager/games/game.jar", capture=True)
+    q_jar_name = shlex.quote(jar_name)
+    res_symlink = run_ssh(cfg, f"ln -sf /opt/jar-manager/games/{q_jar_name} /opt/jar-manager/games/game.jar", capture=True)
     if res_symlink.returncode != 0:
         print(f"[!] Cap nhat symlink that bai:\n{res_symlink.stderr or res_symlink.stdout}")
         return
 
     if args.restart_acc:
         acc = args.restart_acc
+        q_acc = shlex.quote(acc)
         print(f">> 3. Restarting account [{acc}] tren VPS...")
-        res_restart = run_ssh(cfg, f"/opt/jar-manager/scripts/stop-acc.sh {acc} && sleep 1 && /opt/jar-manager/scripts/start-acc.sh {acc}", capture=True)
+        res_restart = run_ssh(cfg, f"/opt/jar-manager/scripts/stop-acc.sh {q_acc} && sleep 1 && /opt/jar-manager/scripts/start-acc.sh {q_acc}", capture=True)
         if res_restart.returncode != 0:
             print(f"[!] Khoi dong lai account [{acc}] that bai:\n{res_restart.stderr or res_restart.stdout}")
             return

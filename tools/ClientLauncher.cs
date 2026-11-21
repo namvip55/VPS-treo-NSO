@@ -49,12 +49,12 @@ namespace JarManagerStandalone
         {
             InitializeData();
             InitializeUI();
-            CheckVpsOnlineAsync();
+            // Khắc phục race condition: chỉ kiểm tra trạng thái sau khi form đã hiển thị và có handle
+            this.Shown += (s, e) => CheckVpsOnlineAsync();
         }
 
         private void InitializeData()
         {
-            // Thư mục lưu cache phụ trợ
             appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JarManager");
             if (!Directory.Exists(appDataDir))
             {
@@ -63,12 +63,10 @@ namespace JarManagerStandalone
 
             vncExePath = Path.Combine(appDataDir, "vncviewer.exe");
 
-            // Đặt tên key file theo Host và Port để tránh xung đột giữa nhiều máy chủ khác nhau
             string safeHost = Program.VPS_HOST.Replace(".", "_").Replace(":", "_");
             string keyFileName = string.Format("client_{0}_{1}.key", safeHost, Program.VPS_PORT);
             keyFilePath = Path.Combine(appDataDir, keyFileName);
 
-            // Trích xuất tài nguyên
             ExtractResource("VncViewer", vncExePath, false);
             ExtractResource("PrivateKey", keyFilePath, true);
         }
@@ -82,7 +80,6 @@ namespace JarManagerStandalone
                 {
                     if (stream != null)
                     {
-                        // Nếu tài nguyên được nhúng trong file thực thi
                         if (!overwriteIfEmbedded && File.Exists(outputPath) && new FileInfo(outputPath).Length > 0)
                         {
                             if (resourceName == "PrivateKey") SecureKeyPermissions(outputPath);
@@ -97,7 +94,6 @@ namespace JarManagerStandalone
                     }
                 }
 
-                // Chế độ Portable (không nhúng resource): tìm kiếm file bên ngoài cạnh file EXE
                 if (File.Exists(outputPath) && new FileInfo(outputPath).Length > 0)
                 {
                     if (resourceName == "PrivateKey") SecureKeyPermissions(outputPath);
@@ -105,7 +101,6 @@ namespace JarManagerStandalone
                 }
 
                 string localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Path.GetFileName(outputPath));
-                // CHỈ fallback sang client.key nếu đang tìm PrivateKey, tuyệt đối không copy đè vào vncviewer.exe
                 if (!File.Exists(localPath) && resourceName == "PrivateKey")
                 {
                     localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "client.key");
@@ -126,12 +121,12 @@ namespace JarManagerStandalone
             {
                 if (!File.Exists(path)) return;
 
-                // 1. Phân quyền chuẩn bằng .NET FileSecurity (chỉ cho phép Current User toàn quyền)
+                // 1. Phân quyền chuẩn bằng .NET FileSecurity
                 try
                 {
                     FileInfo fi = new FileInfo(path);
                     FileSecurity fs = fi.GetAccessControl();
-                    fs.SetAccessRuleProtection(true, false); // Tắt kế thừa từ AppData
+                    fs.SetAccessRuleProtection(true, false);
                     SecurityIdentifier userSid = WindowsIdentity.GetCurrent().User;
                     fs.AddAccessRule(new FileSystemAccessRule(userSid, FileSystemRights.FullControl, AccessControlType.Allow));
                     fi.SetAccessControl(fs);
@@ -139,7 +134,7 @@ namespace JarManagerStandalone
                 }
                 catch { }
 
-                // 2. Dự phòng bằng icacls của Windows - Sử dụng Environment.UserName thay vì %USERNAME% vì CreateProcess không expand biến môi trường
+                // 2. Dự phòng bằng icacls với Environment.UserName
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = "icacls.exe",
@@ -154,6 +149,31 @@ namespace JarManagerStandalone
                 }
             }
             catch { }
+        }
+
+        // Helper gọi Invoke an toàn, chống ObjectDisposedException khi app đóng bất ngờ
+        private void SafeInvoke(Action action)
+        {
+            if (this.IsDisposed || !this.IsHandleCreated) return;
+            try
+            {
+                if (this.InvokeRequired)
+                {
+                    this.BeginInvoke((MethodInvoker)delegate
+                    {
+                        if (!this.IsDisposed && this.IsHandleCreated)
+                        {
+                            action();
+                        }
+                    });
+                }
+                else
+                {
+                    action();
+                }
+            }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
         }
 
         private void CheckVpsOnlineAsync()
@@ -176,22 +196,19 @@ namespace JarManagerStandalone
                 }
                 catch { }
 
-                if (!this.IsDisposed && this.IsHandleCreated)
+                SafeInvoke(() =>
                 {
-                    this.BeginInvoke((MethodInvoker)delegate
+                    if (online)
                     {
-                        if (online)
-                        {
-                            lblStatus.Text = "[●] CLOUD VPS: ONLINE";
-                            lblStatus.ForeColor = Color.FromArgb(22, 163, 74);
-                        }
-                        else
-                        {
-                            lblStatus.Text = "[○] CLOUD VPS: OFFLINE (KHONG THE KET NOI)";
-                            lblStatus.ForeColor = Color.FromArgb(220, 38, 38);
-                        }
-                    });
-                }
+                        lblStatus.Text = "[●] CLOUD VPS: ONLINE";
+                        lblStatus.ForeColor = Color.FromArgb(22, 163, 74);
+                    }
+                    else
+                    {
+                        lblStatus.Text = "[○] CLOUD VPS: OFFLINE (KHONG THE KET NOI)";
+                        lblStatus.ForeColor = Color.FromArgb(220, 38, 38);
+                    }
+                });
             });
         }
 
@@ -322,30 +339,29 @@ namespace JarManagerStandalone
 
             this.FormClosing += (s, e) =>
             {
-                ThreadPool.QueueUserWorkItem(state =>
+                // Fire-and-forget: SSH tự chạy độc lập ở cấp OS, không bị hủy khi ứng dụng thoát
+                try
                 {
-                    ExecuteSshCommand(string.Format("/opt/jar-manager/scripts/mode-idle.sh {0}", Program.TARGET_ACCOUNT));
-                });
+                    FireAndForgetSshCommand(string.Format("/opt/jar-manager/scripts/mode-idle.sh {0}", Program.TARGET_ACCOUNT));
+                }
+                catch { }
                 CloseTunnel();
             };
         }
 
         private void SetUiBusy(bool busy, string statusMessage = null)
         {
-            if (this.InvokeRequired)
+            SafeInvoke(() =>
             {
-                this.BeginInvoke((MethodInvoker)delegate { SetUiBusy(busy, statusMessage); });
-                return;
-            }
+                btnOpenGame.Enabled = !busy;
+                btnRestart.Enabled = !busy;
+                btnStop.Enabled = !busy;
 
-            btnOpenGame.Enabled = !busy;
-            btnRestart.Enabled = !busy;
-            btnStop.Enabled = !busy;
-
-            if (statusMessage != null)
-            {
-                lblStatus.Text = statusMessage;
-            }
+                if (statusMessage != null)
+                {
+                    lblStatus.Text = statusMessage;
+                }
+            });
         }
 
         private void RestartGameAsync()
@@ -360,7 +376,7 @@ namespace JarManagerStandalone
                     ExecuteSshCommand(string.Format("/opt/jar-manager/scripts/start-acc.sh {0}", Program.TARGET_ACCOUNT));
                     Thread.Sleep(800);
 
-                    this.BeginInvoke((MethodInvoker)delegate
+                    SafeInvoke(() =>
                     {
                         SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
                         OpenGameScreen();
@@ -368,7 +384,7 @@ namespace JarManagerStandalone
                 }
                 catch (Exception ex)
                 {
-                    this.BeginInvoke((MethodInvoker)delegate
+                    SafeInvoke(() =>
                     {
                         SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
                         MessageBox.Show("Loi khoi dong lai game: " + ex.Message, "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -388,7 +404,7 @@ namespace JarManagerStandalone
                 try
                 {
                     ExecuteSshCommand(string.Format("/opt/jar-manager/scripts/stop-acc.sh {0}", Program.TARGET_ACCOUNT));
-                    this.BeginInvoke((MethodInvoker)delegate
+                    SafeInvoke(() =>
                     {
                         SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
                         MessageBox.Show("Da dung game tren VPS!", "Thong bao", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -396,7 +412,7 @@ namespace JarManagerStandalone
                 }
                 catch (Exception ex)
                 {
-                    this.BeginInvoke((MethodInvoker)delegate
+                    SafeInvoke(() =>
                     {
                         SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
                         MessageBox.Show("Loi khi dung game: " + ex.Message, "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -433,7 +449,6 @@ namespace JarManagerStandalone
         {
             lock (tunnelLock)
             {
-                // Nếu tunnel của phiên này đang chạy và port đang mở thì tái sử dụng
                 if (tunnelProcess != null && !tunnelProcess.HasExited && currentLocalPort > 0 && !IsPortFree(currentLocalPort))
                 {
                     return true;
@@ -471,7 +486,6 @@ namespace JarManagerStandalone
                     };
                     tunnelProcess = Process.Start(psi);
 
-                    // Chờ chủ động cho đến khi port tunnel thực sự được lắng nghe (tối đa 6 giây)
                     for (int i = 0; i < 30; i++)
                     {
                         Thread.Sleep(200);
@@ -482,7 +496,7 @@ namespace JarManagerStandalone
                         if (tunnelProcess.HasExited)
                         {
                             string err = tunnelProcess.StandardError.ReadToEnd();
-                            this.BeginInvoke((MethodInvoker)delegate
+                            SafeInvoke(() =>
                             {
                                 MessageBox.Show("Khong the ket noi den VPS qua SSH:\n" + err, "Loi Ket Noi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             });
@@ -493,7 +507,7 @@ namespace JarManagerStandalone
                 }
                 catch (Exception ex)
                 {
-                    this.BeginInvoke((MethodInvoker)delegate
+                    SafeInvoke(() =>
                     {
                         MessageBox.Show("Khong the khoi tao SSH Tunnel: " + ex.Message, "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     });
@@ -504,7 +518,6 @@ namespace JarManagerStandalone
 
         private void OpenGameScreen()
         {
-            // Tránh mở đè nhiều cửa sổ VNC trên cùng một tunnel gây xung đột
             if (activeVncProcess != null && !activeVncProcess.HasExited)
             {
                 MessageBox.Show("Màn hình game hiện đang được mở trên máy tính của bạn!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -517,14 +530,13 @@ namespace JarManagerStandalone
             {
                 if (!EnsureTunnel())
                 {
-                    this.BeginInvoke((MethodInvoker)delegate
+                    SafeInvoke(() =>
                     {
                         SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
                     });
                     return;
                 }
 
-                // Kích hoạt Active Mode (tối đa độ nhạy, 60 FPS, focus cửa sổ game)
                 ExecuteSshCommand(string.Format("/opt/jar-manager/scripts/mode-active.sh {0}", Program.TARGET_ACCOUNT));
 
                 string vncPath = vncExePath;
@@ -535,7 +547,7 @@ namespace JarManagerStandalone
 
                 if (!File.Exists(vncPath))
                 {
-                    this.BeginInvoke((MethodInvoker)delegate
+                    SafeInvoke(() =>
                     {
                         SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
                         MessageBox.Show("Khong tim thay vncviewer.exe! Vui long kiem tra file di kem.", "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -545,37 +557,31 @@ namespace JarManagerStandalone
 
                 try
                 {
-                    // Tối ưu độ mượt 60 FPS: -NoJPEG=1 loại bỏ nén ảnh mờ, tăng tốc CPU, nét từng pixel
                     string vncArgs = string.Format("localhost:{0} -PreferredEncoding=Tight -NoJPEG=1 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1", currentLocalPort);
                     activeVncProcess = Process.Start(vncPath, vncArgs);
 
-                    this.BeginInvoke((MethodInvoker)delegate
+                    SafeInvoke(() =>
                     {
                         SetUiBusy(false, "[●] CLOUD VPS: ONLINE (DANG XEM)");
                     });
 
-                    // Theo dõi tiến trình VNC trong background
                     if (activeVncProcess != null)
                     {
                         activeVncProcess.WaitForExit();
                         activeVncProcess = null;
 
-                        // Khách đã đóng màn hình game -> chuyển về chế độ treo tiết kiệm 24/7 & đóng tunnel
                         ExecuteSshCommand(string.Format("/opt/jar-manager/scripts/mode-idle.sh {0}", Program.TARGET_ACCOUNT));
                         CloseTunnel();
 
-                        this.BeginInvoke((MethodInvoker)delegate
+                        SafeInvoke(() =>
                         {
-                            if (!this.IsDisposed)
-                            {
-                                lblStatus.Text = "[●] CLOUD VPS: ONLINE";
-                            }
+                            lblStatus.Text = "[●] CLOUD VPS: ONLINE";
                         });
                     }
                 }
                 catch (Exception ex)
                 {
-                    this.BeginInvoke((MethodInvoker)delegate
+                    SafeInvoke(() =>
                     {
                         SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
                         MessageBox.Show("Khong the mo vncviewer: " + ex.Message, "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -616,6 +622,40 @@ namespace JarManagerStandalone
                 {
                     p.WaitForExit(6000);
                 }
+            }
+            catch { }
+        }
+
+        // Lệnh fire-and-forget: SSH chạy độc lập với app, không bị hủy khi ứng dụng thoát
+        private void FireAndForgetSshCommand(string cmd)
+        {
+            try
+            {
+                if (File.Exists(keyFilePath))
+                {
+                    SecureKeyPermissions(keyFilePath);
+                }
+                string sshArgs;
+                if (File.Exists(keyFilePath) && new FileInfo(keyFilePath).Length > 0)
+                {
+                    sshArgs = string.Format("-i \"{0}\" -p {1} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 {2}@{3} \"{4}\"",
+                        keyFilePath, Program.VPS_PORT, Program.VPS_USER, Program.VPS_HOST, cmd);
+                }
+                else
+                {
+                    sshArgs = string.Format("-p {0} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 {1}@{2} \"{3}\"",
+                        Program.VPS_PORT, Program.VPS_USER, Program.VPS_HOST, cmd);
+                }
+
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "ssh.exe",
+                    Arguments = sshArgs,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                Process.Start(psi);
             }
             catch { }
         }
