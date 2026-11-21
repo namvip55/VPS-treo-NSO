@@ -1,0 +1,11 @@
+{
+  "vps1": {
+    "name": "VPS Chinh (Node-h3og603c)",
+    "host": "14.250.250.229",
+    "port": 12724,
+    "user": "root",
+    "key": "~/.ssh/id_ed25519_jar",
+    "game": "nepsilon.jar",
+    "notes": "Chay Server NSO + Client nepsilon.jar"
+  }
+}
