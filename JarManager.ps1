@@ -5,7 +5,7 @@ Add-Type -AssemblyName System.Drawing
 
 # Global variables
 $global:TunnelProcess = $null
-$global:VpsHost = "remote.io.vn:12724"
+$global:VpsHost = "14.250.250.229:12724"
 
 function Invoke-Vps {
     param([string]$cmd)
@@ -83,7 +83,7 @@ $lblStatus.AutoSize = $true
 $pnlHeader.Controls.Add($lblStatus)
 
 $lblSub = New-Object System.Windows.Forms.Label
-$lblSub.Text = "remote.io.vn:12724 | NSO GEMINI Server + Client 24/7"
+$lblSub.Text = "14.250.250.229:12724 | NSO GEMINI Server + Client 24/7"
 $lblSub.ForeColor = [System.Drawing.Color]::FromArgb(100, 116, 139)
 $lblSub.Location = New-Object System.Drawing.Point(13, 31)
 $lblSub.AutoSize = $true

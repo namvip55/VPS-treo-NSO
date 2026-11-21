@@ -40,10 +40,8 @@ def get_ssh_cmd(vps_cfg, remote_cmd):
     port = vps_cfg["port"]
     user = vps_cfg.get("user", "root")
     
-    if os.path.exists(key):
-        return f'ssh -i "{key}" -p {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {user}@{host} "{remote_cmd}"'
-    else:
-        return f'ssh -p {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {user}@{host} "{remote_cmd}"'
+    key_opt = f'-i "{key}" ' if os.path.exists(key) else ''
+    return f'ssh {key_opt}-p {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 {user}@{host} "{remote_cmd}"'
 
 def run_ssh(vps_cfg, remote_cmd, capture=True):
     cmd = get_ssh_cmd(vps_cfg, remote_cmd)
@@ -145,11 +143,8 @@ def cmd_update_game(args):
     host = cfg["host"]
     port = cfg["port"]
     user = cfg.get("user", "root")
-
-    if os.path.exists(key):
-        scp_cmd = f'scp -i "{key}" -P {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "{jar_path}" {user}@{host}:/opt/jar-manager/games/{jar_name}'
-    else:
-        scp_cmd = f'scp -P {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "{jar_path}" {user}@{host}:/opt/jar-manager/games/{jar_name}'
+    key_opt = f'-i "{key}" ' if os.path.exists(key) else ''
+    scp_cmd = f'scp {key_opt}-P {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 "{jar_path}" {user}@{host}:/opt/jar-manager/games/{jar_name}'
     
     print(f">> 1. Uploading file game sang VPS...")
     subprocess.run(scp_cmd, shell=True, check=True)
@@ -188,12 +183,13 @@ def cmd_update_scripts(args):
     host = cfg["host"]
     port = cfg["port"]
     user = cfg.get("user", "root")
-    local_scripts = os.path.join(BASE_DIR, "scripts", "*")
+    
+    scripts_dir = os.path.join(BASE_DIR, "scripts")
+    script_files = [os.path.join(scripts_dir, f) for f in os.listdir(scripts_dir) if f.endswith(".sh")]
+    quoted_files = " ".join([f'"{f}"' for f in script_files])
 
-    if os.path.exists(key):
-        scp_cmd = f'scp -i "{key}" -P {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {local_scripts} {user}@{host}:/opt/jar-manager/scripts/'
-    else:
-        scp_cmd = f'scp -P {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {local_scripts} {user}@{host}:/opt/jar-manager/scripts/'
+    key_opt = f'-i "{key}" ' if os.path.exists(key) else ''
+    scp_cmd = f'scp {key_opt}-P {port} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=8 {quoted_files} {user}@{host}:/opt/jar-manager/scripts/'
 
     subprocess.run(scp_cmd, shell=True, check=True)
     run_ssh(cfg, "sed -i 's/\\r$//' /opt/jar-manager/scripts/*.sh && chmod +x /opt/jar-manager/scripts/*.sh", capture=False)

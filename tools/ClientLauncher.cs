@@ -31,6 +31,7 @@ namespace JarManagerStandalone
         private string appDataDir;
         private string vncExePath;
         private string keyFilePath;
+        private int currentLocalPort = 0;
 
         public MainForm()
         {
@@ -48,42 +49,54 @@ namespace JarManagerStandalone
             }
 
             vncExePath = Path.Combine(appDataDir, "vncviewer.exe");
-            keyFilePath = Path.Combine(appDataDir, "client.key");
+            
+            // Đặt tên key file theo Host và Port để tránh xung đột giữa nhiều máy chủ khác nhau
+            string safeHost = Program.VPS_HOST.Replace(".", "_").Replace(":", "_");
+            string keyFileName = string.Format("client_{0}_{1}.key", safeHost, Program.VPS_PORT);
+            keyFilePath = Path.Combine(appDataDir, keyFileName);
 
-            // Giải nén vncviewer.exe từ Embedded Resource nếu chưa có
-            ExtractResource("VncViewer", vncExePath);
-            ExtractResource("PrivateKey", keyFilePath);
+            // Trích xuất tài nguyên
+            ExtractResource("VncViewer", vncExePath, false);
+            ExtractResource("PrivateKey", keyFilePath, true);
         }
 
-        private void ExtractResource(string resourceName, string outputPath)
+        private void ExtractResource(string resourceName, string outputPath, bool overwriteIfEmbedded = false)
         {
             try
             {
-                // Nếu file đã tồn tại và có kích thước > 0 thì bỏ qua
+                Assembly assembly = Assembly.GetExecutingAssembly();
+                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                {
+                    if (stream != null)
+                    {
+                        // Nếu tài nguyên được nhúng trong file thực thi
+                        if (!overwriteIfEmbedded && File.Exists(outputPath) && new FileInfo(outputPath).Length > 0)
+                        {
+                            return;
+                        }
+                        using (FileStream fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
+                        {
+                            stream.CopyTo(fs);
+                        }
+                        return;
+                    }
+                }
+
+                // Chế độ Portable (không nhúng resource): tìm kiếm file bên ngoài cạnh file EXE
                 if (File.Exists(outputPath) && new FileInfo(outputPath).Length > 0)
                 {
                     return;
                 }
 
-                Assembly assembly = Assembly.GetExecutingAssembly();
-                using (Stream stream = assembly.GetManifestResourceStream(resourceName))
+                string localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Path.GetFileName(outputPath));
+                if (!File.Exists(localPath))
                 {
-                    if (stream == null)
-                    {
-                        // Kiểm tra nếu file có sẵn bên ngoài cạnh file EXE
-                        string localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Path.GetFileName(outputPath));
-                        if (File.Exists(localPath))
-                        {
-                            File.Copy(localPath, outputPath, true);
-                            return;
-                        }
-                        return;
-                    }
+                    localPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "client.key");
+                }
 
-                    using (FileStream fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
-                    {
-                        stream.CopyTo(fs);
-                    }
+                if (File.Exists(localPath))
+                {
+                    File.Copy(localPath, outputPath, true);
                 }
             }
             catch { }
@@ -232,21 +245,14 @@ namespace JarManagerStandalone
             this.FormClosing += (s, e) => CloseTunnel();
         }
 
-        private bool IsPortInUse(int port)
+        private bool IsPortFree(int port)
         {
             try
             {
-                using (TcpClient client = new TcpClient())
-                {
-                    IAsyncResult result = client.BeginConnect("127.0.0.1", port, null, null);
-                    bool success = result.AsyncWaitHandle.WaitOne(300);
-                    if (success)
-                    {
-                        client.EndConnect(result);
-                        return true;
-                    }
-                    return false;
-                }
+                TcpListener listener = new TcpListener(System.Net.IPAddress.Loopback, port);
+                listener.Start();
+                listener.Stop();
+                return true;
             }
             catch
             {
@@ -254,26 +260,39 @@ namespace JarManagerStandalone
             }
         }
 
+        private int GetAvailableLocalPort(int startPort)
+        {
+            for (int p = startPort; p < startPort + 50; p++)
+            {
+                if (IsPortFree(p)) return p;
+            }
+            return startPort;
+        }
+
         private void EnsureTunnel()
         {
-            if (IsPortInUse(5901))
+            // Nếu tunnel của phiên này đang chạy và port đang mở thì tái sử dụng
+            if (tunnelProcess != null && !tunnelProcess.HasExited && currentLocalPort > 0 && !IsPortFree(currentLocalPort))
             {
                 return;
             }
+
+            // Tự động tìm port local còn rảnh (bắt đầu từ 5901) để cho phép mở nhiều client song song
+            currentLocalPort = GetAvailableLocalPort(5901);
 
             try
             {
                 string sshArgs;
                 if (File.Exists(keyFilePath) && new FileInfo(keyFilePath).Length > 0)
                 {
-                    sshArgs = string.Format("-i \"{0}\" -p {1} -N -L 5901:localhost:5901 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 {2}@{3}",
-                        keyFilePath, Program.VPS_PORT, Program.VPS_USER, Program.VPS_HOST);
+                    sshArgs = string.Format("-i \"{0}\" -p {1} -N -L {2}:localhost:5901 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 {3}@{4}",
+                        keyFilePath, Program.VPS_PORT, currentLocalPort, Program.VPS_USER, Program.VPS_HOST);
                 }
                 else
                 {
                     // Fallback sang alias vps-jar nếu có
-                    sshArgs = string.Format("-p {0} -N -L 5901:localhost:5901 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 {1}@{2}",
-                        Program.VPS_PORT, Program.VPS_USER, Program.VPS_HOST);
+                    sshArgs = string.Format("-p {0} -N -L {1}:localhost:5901 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 -o ServerAliveCountMax=3 {2}@{3}",
+                        Program.VPS_PORT, currentLocalPort, Program.VPS_USER, Program.VPS_HOST);
                 }
 
                 ProcessStartInfo psi = new ProcessStartInfo
@@ -305,7 +324,7 @@ namespace JarManagerStandalone
 
             if (File.Exists(vncPath))
             {
-                string vncArgs = "localhost:5901 -PreferredEncoding=Tight -QualityLevel=6 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1";
+                string vncArgs = string.Format("localhost:{0} -PreferredEncoding=Tight -QualityLevel=6 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1", currentLocalPort);
                 Process.Start(vncPath, vncArgs);
             }
             else

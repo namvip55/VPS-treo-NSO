@@ -8,6 +8,7 @@ giao cho khách chơi game mà không cần khách phải cấu hình bất cứ
 
 import os
 import sys
+import re
 import argparse
 import subprocess
 import shutil
@@ -43,15 +44,22 @@ def generate_key_pair(output_prefix):
     subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL)
     return priv_key, pub_key
 
-def build_standalone_exe(host, port, title, key_path, out_exe_path):
-    """Biên dịch file C# nhúng sẵn cấu hình, vncviewer và private key thành 1 file EXE duy nhất"""
+def patch_client_launcher_code(host, port, title):
+    """Thay thế thông số cấu hình vào file template C# bằng regex an toàn"""
     with open(TEMPLATE_CS, "r", encoding="utf-8") as f:
         code = f.read()
-    
-    # Thay thế thông số cấu hình
-    code = code.replace('public const string VPS_HOST = "14.250.250.229";', f'public const string VPS_HOST = "{host}";')
-    code = code.replace('public const int VPS_PORT = 12724;', f'public const int VPS_PORT = {port};')
-    code = code.replace('public const string GAME_TITLE = "NSO GEMINI";', f'public const string GAME_TITLE = "{title}";')
+
+    code, n_host = re.subn(r'public const string VPS_HOST\s*=\s*".*?";', f'public const string VPS_HOST = "{host}";', code)
+    code, n_port = re.subn(r'public const int VPS_PORT\s*=\s*\d+;', f'public const int VPS_PORT = {port};', code)
+    code, n_title = re.subn(r'public const string GAME_TITLE\s*=\s*".*?";', f'public const string GAME_TITLE = "{title}";', code)
+
+    if n_host == 0 or n_port == 0 or n_title == 0:
+        raise ValueError(f"Không thể gán cấu hình vào ClientLauncher.cs! (host={n_host}, port={n_port}, title={n_title})")
+    return code
+
+def build_standalone_exe(host, port, title, key_path, out_exe_path):
+    """Biên dịch file C# nhúng sẵn cấu hình, vncviewer và private key thành 1 file EXE duy nhất"""
+    code = patch_client_launcher_code(host, port, title)
 
     with tempfile.NamedTemporaryFile("w", suffix=".cs", encoding="utf-8", delete=False) as tmp_cs:
         tmp_cs.write(code)
@@ -81,11 +89,7 @@ def build_zip_package(host, port, title, key_path, out_zip_path):
     try:
         # Biên dịch file EXE nhẹ (không nhúng VNC)
         exe_path = os.path.join(temp_dir, f"{title}.exe")
-        with open(TEMPLATE_CS, "r", encoding="utf-8") as f:
-            code = f.read()
-        code = code.replace('public const string VPS_HOST = "14.250.250.229";', f'public const string VPS_HOST = "{host}";')
-        code = code.replace('public const int VPS_PORT = 12724;', f'public const int VPS_PORT = {port};')
-        code = code.replace('public const string GAME_TITLE = "NSO GEMINI";', f'public const string GAME_TITLE = "{title}";')
+        code = patch_client_launcher_code(host, port, title)
 
         with tempfile.NamedTemporaryFile("w", suffix=".cs", encoding="utf-8", delete=False) as tmp_cs:
             tmp_cs.write(code)
