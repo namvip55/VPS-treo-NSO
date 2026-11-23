@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Threading;
@@ -31,6 +32,13 @@ namespace JarManagerStandalone
 
     public class MainForm : Form
     {
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        private const int SW_RESTORE = 9;
+
         private Process tunnelProcess = null;
         private Process activeVncProcess = null;
         private readonly object tunnelLock = new object();
@@ -49,7 +57,6 @@ namespace JarManagerStandalone
         {
             InitializeData();
             InitializeUI();
-            // Khắc phục race condition: chỉ kiểm tra trạng thái sau khi form đã hiển thị và có handle
             this.Shown += (s, e) => CheckVpsOnlineAsync();
         }
 
@@ -121,7 +128,6 @@ namespace JarManagerStandalone
             {
                 if (!File.Exists(path)) return;
 
-                // 1. Phân quyền chuẩn bằng .NET FileSecurity
                 try
                 {
                     FileInfo fi = new FileInfo(path);
@@ -134,7 +140,6 @@ namespace JarManagerStandalone
                 }
                 catch { }
 
-                // 2. Dự phòng bằng icacls với Environment.UserName
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = "icacls.exe",
@@ -151,7 +156,6 @@ namespace JarManagerStandalone
             catch { }
         }
 
-        // Helper gọi Invoke an toàn, chống ObjectDisposedException khi app đóng bất ngờ
         private void SafeInvoke(Action action)
         {
             if (this.IsDisposed || !this.IsHandleCreated) return;
@@ -251,7 +255,7 @@ namespace JarManagerStandalone
             };
             pnlHeader.Controls.Add(lblSub);
 
-            // --- NÚT VÀO GAME LỚN DUY NHẤT ---
+            // --- NÚT VÀO GAME LỚN DUY NHẤT (Có hiệu ứng hover, click down rõ rệt) ---
             btnOpenGame = new Button
             {
                 Text = "▶ VAO THAO TAC GAME (1 CLICK)",
@@ -264,6 +268,8 @@ namespace JarManagerStandalone
                 FlatStyle = FlatStyle.Flat
             };
             btnOpenGame.FlatAppearance.BorderSize = 0;
+            btnOpenGame.FlatAppearance.MouseOverBackColor = Color.FromArgb(34, 197, 94);
+            btnOpenGame.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 128, 61);
             btnOpenGame.Click += (s, e) => OpenGameScreen();
             this.Controls.Add(btnOpenGame);
 
@@ -281,10 +287,14 @@ namespace JarManagerStandalone
                 Location = new Point(0, 0),
                 Size = new Size(200, 38),
                 BackColor = Color.FromArgb(235, 240, 245),
+                ForeColor = Color.FromArgb(30, 41, 59),
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 FlatStyle = FlatStyle.Flat
             };
             btnRestart.FlatAppearance.BorderSize = 0;
+            btnRestart.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 230, 242);
+            btnRestart.FlatAppearance.MouseDownBackColor = Color.FromArgb(195, 210, 230);
             btnRestart.Click += (s, e) => RestartGameAsync();
             pnlControls.Controls.Add(btnRestart);
 
@@ -295,10 +305,13 @@ namespace JarManagerStandalone
                 Size = new Size(200, 38),
                 BackColor = Color.FromArgb(254, 226, 226),
                 ForeColor = Color.FromArgb(185, 28, 28),
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 FlatStyle = FlatStyle.Flat
             };
             btnStop.FlatAppearance.BorderSize = 0;
+            btnStop.FlatAppearance.MouseOverBackColor = Color.FromArgb(254, 202, 202);
+            btnStop.FlatAppearance.MouseDownBackColor = Color.FromArgb(248, 113, 113);
             btnStop.Click += (s, e) => StopGameAsync();
             pnlControls.Controls.Add(btnStop);
 
@@ -339,7 +352,6 @@ namespace JarManagerStandalone
 
             this.FormClosing += (s, e) =>
             {
-                // Fire-and-forget: SSH tự chạy độc lập ở cấp OS, không bị hủy khi ứng dụng thoát
                 try
                 {
                     FireAndForgetSshCommand(string.Format("/opt/jar-manager/scripts/mode-idle.sh {0}", Program.TARGET_ACCOUNT));
@@ -349,24 +361,90 @@ namespace JarManagerStandalone
             };
         }
 
-        private void SetUiBusy(bool busy, string statusMessage = null)
-        {
-            SafeInvoke(() =>
-            {
-                btnOpenGame.Enabled = !busy;
-                btnRestart.Enabled = !busy;
-                btnStop.Enabled = !busy;
+        // --- CÁC HÀM CẬP NHẬT TRẠNG THÁI GIAO DIỆN TRỰC QUAN (CHỐNG DOUBLE-CLICK) ---
 
-                if (statusMessage != null)
+        private void SetConnectingState()
+        {
+            // Phản hồi lập tức 0ms ngay khi click chuột
+            btnOpenGame.Enabled = false;
+            btnOpenGame.Text = "⏳ ĐANG KẾT NỐI VÀO GAME... (VUI LÒNG CHỜ)";
+            btnOpenGame.BackColor = Color.FromArgb(217, 119, 6); // Màu vàng cam ấm báo hiệu đang xử lý
+            btnOpenGame.Cursor = Cursors.WaitCursor;
+
+            btnRestart.Enabled = false;
+            btnStop.Enabled = false;
+
+            lblStatus.Text = "[⏳] DANG KHOI TAO SSH TUNNEL & VAO GAME...";
+            lblStatus.ForeColor = Color.FromArgb(217, 119, 6);
+        }
+
+        private void SetActiveGameState()
+        {
+            // Khi màn hình VNC đã mở: Nút chuyển sang trạng thái Active màu xanh dương
+            btnOpenGame.Enabled = true;
+            btnOpenGame.Text = "✔ CỬA SỔ GAME ĐANG MỞ (BẤM ĐỂ HIỆN LÊN ĐẦU)";
+            btnOpenGame.BackColor = Color.FromArgb(37, 99, 235); // Royal Blue #2563eb
+            btnOpenGame.FlatAppearance.MouseOverBackColor = Color.FromArgb(59, 130, 246);
+            btnOpenGame.FlatAppearance.MouseDownBackColor = Color.FromArgb(29, 78, 216);
+            btnOpenGame.Cursor = Cursors.Hand;
+
+            btnRestart.Enabled = true;
+            btnStop.Enabled = true;
+
+            lblStatus.Text = "[●] CLOUD VPS: ONLINE (DANG XEM GAME 60 FPS)";
+            lblStatus.ForeColor = Color.FromArgb(22, 163, 74);
+        }
+
+        private void ResetToIdleState()
+        {
+            // Trở về trạng thái ban đầu khi không có cửa sổ game nào đang mở
+            btnOpenGame.Enabled = true;
+            btnOpenGame.Text = "▶ VAO THAO TAC GAME (1 CLICK)";
+            btnOpenGame.BackColor = Color.FromArgb(22, 163, 74);
+            btnOpenGame.FlatAppearance.MouseOverBackColor = Color.FromArgb(34, 197, 94);
+            btnOpenGame.FlatAppearance.MouseDownBackColor = Color.FromArgb(21, 128, 61);
+            btnOpenGame.Cursor = Cursors.Hand;
+
+            btnRestart.Enabled = true;
+            btnRestart.Text = "↺ Khoi Dong Lai Game";
+            btnRestart.BackColor = Color.FromArgb(235, 240, 245);
+
+            btnStop.Enabled = true;
+            btnStop.Text = "■ Tat Game";
+            btnStop.BackColor = Color.FromArgb(254, 226, 226);
+
+            lblStatus.Text = "[●] CLOUD VPS: ONLINE";
+            lblStatus.ForeColor = Color.FromArgb(22, 163, 74);
+        }
+
+        private void BringVncToFront()
+        {
+            try
+            {
+                if (activeVncProcess != null && !activeVncProcess.HasExited)
                 {
-                    lblStatus.Text = statusMessage;
+                    IntPtr hWnd = activeVncProcess.MainWindowHandle;
+                    if (hWnd != IntPtr.Zero)
+                    {
+                        ShowWindow(hWnd, SW_RESTORE);
+                        SetForegroundWindow(hWnd);
+                    }
                 }
-            });
+            }
+            catch { }
         }
 
         private void RestartGameAsync()
         {
-            SetUiBusy(true, "[↺] DANG KHOI DONG LAI GAME...");
+            btnRestart.Enabled = false;
+            btnRestart.Text = "⏳ Đang khởi động...";
+            btnRestart.BackColor = Color.FromArgb(254, 240, 138);
+            btnOpenGame.Enabled = false;
+            btnStop.Enabled = false;
+
+            lblStatus.Text = "[↺] DANG KHOI DONG LAI GAME...";
+            lblStatus.ForeColor = Color.FromArgb(217, 119, 6);
+
             ThreadPool.QueueUserWorkItem(state =>
             {
                 try
@@ -378,7 +456,7 @@ namespace JarManagerStandalone
 
                     SafeInvoke(() =>
                     {
-                        SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
+                        ResetToIdleState();
                         OpenGameScreen();
                     });
                 }
@@ -386,7 +464,7 @@ namespace JarManagerStandalone
                 {
                     SafeInvoke(() =>
                     {
-                        SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
+                        ResetToIdleState();
                         MessageBox.Show("Loi khoi dong lai game: " + ex.Message, "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     });
                 }
@@ -398,7 +476,15 @@ namespace JarManagerStandalone
             var confirm = MessageBox.Show("Ban co chac muon tat game tren VPS?", "Xac nhan", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (confirm != DialogResult.Yes) return;
 
-            SetUiBusy(true, "[■] DANG DUNG GAME TREN VPS...");
+            btnStop.Enabled = false;
+            btnStop.Text = "⏳ Đang tắt game...";
+            btnStop.BackColor = Color.FromArgb(254, 202, 202);
+            btnOpenGame.Enabled = false;
+            btnRestart.Enabled = false;
+
+            lblStatus.Text = "[■] DANG DUNG GAME TREN VPS...";
+            lblStatus.ForeColor = Color.FromArgb(220, 38, 38);
+
             ThreadPool.QueueUserWorkItem(state =>
             {
                 try
@@ -406,7 +492,8 @@ namespace JarManagerStandalone
                     ExecuteSshCommand(string.Format("/opt/jar-manager/scripts/stop-acc.sh {0}", Program.TARGET_ACCOUNT));
                     SafeInvoke(() =>
                     {
-                        SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
+                        ResetToIdleState();
+                        lblStatus.Text = "[●] CLOUD VPS: ONLINE (DA DUNG GAME)";
                         MessageBox.Show("Da dung game tren VPS!", "Thong bao", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     });
                 }
@@ -414,7 +501,7 @@ namespace JarManagerStandalone
                 {
                     SafeInvoke(() =>
                     {
-                        SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
+                        ResetToIdleState();
                         MessageBox.Show("Loi khi dung game: " + ex.Message, "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     });
                 }
@@ -518,13 +605,15 @@ namespace JarManagerStandalone
 
         private void OpenGameScreen()
         {
+            // Nếu cửa sổ VNC đang mở: Đưa ngay cửa sổ lên đầu màn hình thay vì báo lỗi
             if (activeVncProcess != null && !activeVncProcess.HasExited)
             {
-                MessageBox.Show("Màn hình game hiện đang được mở trên máy tính của bạn!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                BringVncToFront();
                 return;
             }
 
-            SetUiBusy(true, "[▶] DANG KET NOI VAO GAME...");
+            // PHẢN HỒI THỊ GIÁC LẬP TỨC 0MS: Đổi màu, đổi text, khóa nút chống double-click
+            SetConnectingState();
 
             ThreadPool.QueueUserWorkItem(state =>
             {
@@ -532,7 +621,7 @@ namespace JarManagerStandalone
                 {
                     SafeInvoke(() =>
                     {
-                        SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
+                        ResetToIdleState();
                     });
                     return;
                 }
@@ -549,7 +638,7 @@ namespace JarManagerStandalone
                 {
                     SafeInvoke(() =>
                     {
-                        SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
+                        ResetToIdleState();
                         MessageBox.Show("Khong tim thay vncviewer.exe! Vui long kiem tra file di kem.", "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     });
                     return;
@@ -562,7 +651,7 @@ namespace JarManagerStandalone
 
                     SafeInvoke(() =>
                     {
-                        SetUiBusy(false, "[●] CLOUD VPS: ONLINE (DANG XEM)");
+                        SetActiveGameState();
                     });
 
                     if (activeVncProcess != null)
@@ -575,7 +664,7 @@ namespace JarManagerStandalone
 
                         SafeInvoke(() =>
                         {
-                            lblStatus.Text = "[●] CLOUD VPS: ONLINE";
+                            ResetToIdleState();
                         });
                     }
                 }
@@ -583,7 +672,7 @@ namespace JarManagerStandalone
                 {
                     SafeInvoke(() =>
                     {
-                        SetUiBusy(false, "[●] CLOUD VPS: ONLINE");
+                        ResetToIdleState();
                         MessageBox.Show("Khong the mo vncviewer: " + ex.Message, "Loi", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     });
                 }
@@ -626,7 +715,6 @@ namespace JarManagerStandalone
             catch { }
         }
 
-        // Lệnh fire-and-forget: SSH chạy độc lập với app, không bị hủy khi ứng dụng thoát
         private void FireAndForgetSshCommand(string cmd)
         {
             try
