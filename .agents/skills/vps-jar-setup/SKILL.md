@@ -162,13 +162,28 @@ Các script chính:
 
 ---
 
-## 💻 PHẦN 4: TRIỂN KHAI CLIENT WINDOWS (`ClientLauncher.cs` & `package_client.py`)
+## 💻 PHẦN 4: TRIỂN KHAI CLIENT ĐIỀU KHIỂN (WINDOWS & IPHONE)
 
+### 4.1. Nhánh Windows: Client EXE 1-Click ([ClientLauncher.cs](file:///d:/project/Vps-Treo-Nso/tools/ClientLauncher.cs) & [package_client.py](file:///d:/project/Vps-Treo-Nso/tools/package_client.py))
 Hệ thống sử dụng bộ mã nguồn C# thuần túy [ClientLauncher.cs](file:///d:/project/Vps-Treo-Nso/tools/ClientLauncher.cs), biên dịch bằng trình biên dịch `.NET 4.0` (`csc.exe`) có sẵn trên 100% máy Windows:
 - **Tự động cấp Port nội bộ linh hoạt (5901–5950)**: Cho phép mở nhiều client quản lý nhiều VPS cùng lúc không bị xung đột.
 - **Tự động phân quyền ACL cá nhân**: Tránh lỗi OpenSSH `UNPROTECTED PRIVATE KEY FILE`.
 - **Bảo mật tuyệt đối**: Khóa SSH cấp cho khách là khóa riêng biệt (Ed25519), được cấu hình qua wrapper chỉ mở đúng cổng VNC 5901, không có quyền root.
 - **Đóng gói 1-Click tự động**: Sử dụng [package_client.py](file:///d:/project/Vps-Treo-Nso/tools/package_client.py) để xuất file EXE duy nhất hoặc gói ZIP Portable giao cho khách.
+
+### 4.2. Nhánh iPhone / iPad: Web Mobile PWA & Ngrok Permanent Tunnel ([web/](file:///d:/project/Vps-Treo-Nso/web/))
+Đối với hệ điều hành iOS (không chạy được EXE và bị Apple tự động ngắt kết nối SSH ngầm):
+- **Cơ chế Web-based noVNC**: Biến Display `:1` (Port 5901) thành WebSocket HTML5 Canvas trên cổng nội bộ 6080 qua `websockify`.
+- **Cụm Phím Ảo Cảm Ứng (Virtual Touch D-Pad)**: Tích hợp sẵn cụm nút di chuyển và kỹ năng chuẩn Ninja School (`8: Nhảy`, `2: Cúi`, `4/6: Trái/Phải`, `5: Đánh`, `7/9/1/3: Skill`, `*, #, 0`). Nút bấm bán trong suốt, hỗ trợ đa điểm, rung phản hồi xúc giác nhẹ (Haptic Feedback) không che khuất tầm nhìn.
+- **Cố Định Link Vĩnh Viễn Bằng Ngrok Static Domain**:
+  Sử dụng 1 domain tĩnh miễn phí từ tài khoản Ngrok (ví dụ: `https://namnso.ngrok-free.app`), chạy làm service nền `ngrok.service` 24/7.
+  - Link không bao giờ thay đổi dù VPS khởi động lại bao nhiêu lần.
+  - Khách chỉ cần mở Safari $\rightarrow$ Bấm nút **Chia Sẻ** $\rightarrow$ Chọn **Thêm vào MH chính (Add to Home Screen)** để biến thành 1 App Game toàn màn hình.
+- **Lệnh Cài Đặt 1-Click Trên VPS**:
+  ```bash
+  bash /opt/jar-manager/scripts/setup-ios-web.sh --token <NGROK_TOKEN> --domain <YOUR_DOMAIN.ngrok-free.app>
+  ```
+
 
 ---
 

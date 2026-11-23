@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>NSO GEMINI - Cloud Gaming Mobile</title>
+  
+  <!-- Apple iOS Web App Tags (PWA) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NSO Cloud">
+  <meta name="theme-color" content="#090d16">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="app-container">
+    <!-- Header Bar -->
+    <header id="top-bar">
+      <div class="status-badge">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">ĐANG KẾT NỐI...</span>
+      </div>
+
+      <div class="title-text">NSO CLOUD 24/7</div>
+
+      <div class="bar-actions">
+        <button class="bar-btn" id="btn-text-dialog" title="Nhập chữ/số vào game">💬 Chat</button>
+        <button class="bar-btn" id="btn-toggle-pad" title="Ẩn/Hiện bàn phím ảo">🎮 Ẩn Nút</button>
+        <button class="bar-btn" id="btn-fullscreen" title="Toàn màn hình">⛶</button>
+      </div>
+    </header>
+
+    <!-- Khu vực hiển thị màn hình Game -->
+    <main id="screen-wrapper">
+      <div id="vnc-screen"></div>
+      <div id="msg-overlay" class="hidden">Đang tải màn hình...</div>
+    </main>
+
+    <!-- Bàn phím ảo cảm ứng (Virtual Touch Gamepad) -->
+    <div id="gamepad-overlay">
+      <!-- Cụm điều khiển ở nửa dưới màn hình để thuận tiện 2 ngón tay cái -->
+      <div class="gamepad-bottom-row">
+        
+        <!-- Cụm Di Chuyển D-Pad bên tay trái -->
+        <div class="dpad-cluster">
+          <div class="dpad-center"></div>
+          <button class="gpad-btn dpad-btn dpad-up" data-key="UP">
+            <span>▲</span>
+            <span class="btn-label-sub">8 (Nhảy)</span>
+          </button>
+          <button class="gpad-btn dpad-btn dpad-down" data-key="DOWN">
+            <span>▼</span>
+            <span class="btn-label-sub">2 (Cúi)</span>
+          </button>
+          <button class="gpad-btn dpad-btn dpad-left" data-key="LEFT">
+            <span>◀</span>
+            <span class="btn-label-sub">4 (Trái)</span>
+          </button>
+          <button class="gpad-btn dpad-btn dpad-right" data-key="RIGHT">
+            <span>▶</span>
+            <span class="btn-label-sub">6 (Phải)</span>
+          </button>
+        </div>
+
+        <!-- Cụm Phím mềm giữa đáy (Menu / Thoát / Nhặt đồ) -->
+        <div class="center-softkeys">
+          <button class="gpad-btn softkey-btn" data-key="STAR">
+            <span>* Menu</span>
+          </button>
+          <button class="gpad-btn softkey-btn" data-key="KEY_0">
+            <span>0 Nhặt</span>
+          </button>
+          <button class="gpad-btn softkey-btn" data-key="HASH">
+            <span># Thoát</span>
+          </button>
+        </div>
+
+        <!-- Cụm Hành Động & Kỹ Năng bên tay phải -->
+        <div class="action-cluster">
+          <!-- Nút Đánh / Chọn Lớn ở Giữa -->
+          <button class="gpad-btn act-center" data-key="KEY_5">
+            <span>5</span>
+            <span class="btn-label-sub">ĐÁNH</span>
+          </button>
+
+          <!-- Nút Kỹ Năng 1 (Phím 7) -->
+          <button class="gpad-btn act-top" data-key="KEY_7">
+            <span>7</span>
+            <span class="btn-label-sub">Skill 1</span>
+          </button>
+
+          <!-- Nút Kỹ Năng 3 (Phím 9) -->
+          <button class="gpad-btn act-right" data-key="KEY_9">
+            <span>9</span>
+            <span class="btn-label-sub">Skill 3</span>
+          </button>
+
+          <!-- Nút Kỹ Năng 7 (Phím 1) -->
+          <button class="gpad-btn act-left" data-key="KEY_1">
+            <span>1</span>
+            <span class="btn-label-sub">Skill 7</span>
+          </button>
+
+          <!-- Nút Kỹ Năng 9 (Phím 3) -->
+          <button class="gpad-btn act-bottom" data-key="KEY_3">
+            <span>3</span>
+            <span class="btn-label-sub">Skill 9</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Hộp thoại nhập văn bản (Chat/Pass) -->
+  <div id="text-input-dialog" class="hidden">
+    <div class="dialog-box">
+      <h3>Nhập Ký Tự Vào Game</h3>
+      <input type="text" id="input-game-text" placeholder="Nhập tài khoản, mật khẩu hoặc chat..." autocomplete="off">
+      <div class="dialog-actions">
+        <button class="dialog-btn btn-secondary" id="btn-cancel-text">Hủy</button>
+        <button class="dialog-btn btn-primary" id="btn-send-text">Gửi Vào Game</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nạp controller bàn phím cảm ứng -->
+  <script src="gamepad.js"></script>
+
+  <!-- Nạp module noVNC kết nối WebSocket -->
+  <script type="module">
+    import RFB from './core/rfb.js';
+
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const host = urlParams.get('host') || window.location.hostname;
+      const port = urlParams.get('port') || window.location.port || (window.location.protocol === 'https:' ? 443 : 80);
+      const path = urlParams.get('path') || 'websockify';
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const vncUrl = `${protocol}://${host}:${port}/${path}`;
+
+      const screen = document.getElementById('vnc-screen');
+      const rfb = new RFB(screen, vncUrl, {
+        credentials: { password: urlParams.get('password') || '' }
+      });
+
+      rfb.scaleViewport = true;
+      rfb.resizeSession = false;
+      rfb.clipViewport = false;
+      rfb.focusOnClick = true;
+
+      window.controller.setRfb(rfb);
+    } catch (err) {
+      console.warn('Luu y: Core noVNC chua duoc copy vao thu muc web. Khi deploy tren VPS se duoc tu dong copy tu /usr/share/novnc.');
+      window.controller.updateStatus('CHỜ DEPLOY VPS', '#f59e0b');
+    }
+  </script>
+</body>
+</html>

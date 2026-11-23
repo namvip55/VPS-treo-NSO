@@ -117,6 +117,13 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
   * Mở VNC Viewer với cờ tối ưu:
     `localhost:<port> -PreferredEncoding=Tight -NoJPEG=1 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1`
 
+* **Client Web Mobile Cho iPhone / iPad ([web/](web/)):**
+  * Chạy trực tiếp trên trình duyệt Safari (Hỗ trợ PWA Add to Home Screen toàn màn hình).
+  * Cầu nối `websockify` (Port 6080) kết nối vào TigerVNC `:1` (Port 5901).
+  * Tích hợp **Cụm phím ảo cảm ứng bán trong suốt (Virtual Touch D-Pad & Action Buttons)** chuẩn game NSO (2, 4, 6, 8, 5, 7, 9, *, #) không che khuất màn hình.
+  * Cố định link vĩnh viễn 100% bằng **Ngrok Permanent Static Tunnel** (`https://<domain>.ngrok-free.app`), không bị mất kết nối hay đổi link khi reboot.
+
+
 ---
 
 ## 📁 4. CẤU TRÚC THƯ MỤC TRÊN VPS
@@ -132,9 +139,16 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
 │   └── acc1/                       # Thư mục dữ liệu RMS tài khoản
 │       ├── acc1.pid                # Mã tiến trình PID
 │       └── .microemulator/         # Dữ liệu game lưu trữ
+├── web/                            # Giao diện Web Mobile cho iPhone
+│   ├── core/                       # Core noVNC RFB modules
+│   ├── index.html                  # Giao diện web mobile responsive
+│   ├── style.css                   # Glassmorphism theme, tối ưu cảm ứng
+│   ├── gamepad.js                  # Xử lý cảm ứng D-Pad 8 2 4 6 5 7 9
+│   └── manifest.json               # Cấu hình PWA toàn màn hình iOS
 └── scripts/
     ├── start-acc.sh                # Bật game: start-acc.sh [tên_acc]
     ├── stop-acc.sh                 # Tắt game: stop-acc.sh [tên_acc]
+    ├── setup-ios-web.sh            # Cài noVNC + Ngrok tunnel cho iPhone
     ├── mode-active.sh              # Kích hoạt 60 FPS, renice 0 khi đang xem
     ├── mode-idle.sh                # Hạ renice 15 khi treo ngầm 24/7
     ├── auto-power-save.sh          # Tự động điều tiết active/idle theo kết nối
