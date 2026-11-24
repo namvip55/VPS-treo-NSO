@@ -99,17 +99,24 @@ window.CONFIG = {
 };
 EOF
 
-# 3. Tạo dịch vụ systemd cho noVNC / websockify (Port 6080 -> VNC Display :1 Port 5901)
-echo "[3/5] Cau hinh dich vu novnc.service (Websockify)..."
+# Khởi tạo bảng định tuyến tokens.cfg cho websockify (hỗ trợ nhiều game / nhiều display trên 1 ngrok)
+cat << EOF > "$SRC_WEB_DIR/tokens.cfg"
+# Websockify Token Routing: <PIN_HOẶC_SLOT>: 127.0.0.1:<PORT>
+${CLIENT_PIN}: 127.0.0.1:5901
+default: 127.0.0.1:5901
+EOF
+
+# 3. Tạo dịch vụ systemd cho noVNC / websockify (Hỗ trợ Multi-Token Routing trên Port 6080)
+echo "[3/5] Cau hinh dich vu novnc.service (Websockify Multi-Tenant Token Routing)..."
 cat << 'EOF' > /etc/systemd/system/novnc.service
 [Unit]
-Description=noVNC WebSockets Bridge for Mobile Safari
+Description=noVNC WebSockets Bridge for Mobile Safari (Multi-Slot Token Routing)
 After=network.target vncserver.service
 
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/bin/websockify --web /opt/jar-manager/web 6080 localhost:5901
+ExecStart=/usr/bin/websockify --web /opt/jar-manager/web --token-plugin TokenFile --token-source /opt/jar-manager/web/tokens.cfg 6080 localhost:5901
 Restart=always
 RestartSec=3
 

@@ -60,6 +60,7 @@ Vps-Treo-Nso/
 ├── scripts/                       # TẬP LỆNH SHELL TRÊN VPS
 │   ├── start-acc.sh               # Khởi chạy tài khoản (tự động nhận diện RAM & bypass Start)
 │   ├── stop-acc.sh                # Tắt tài khoản an toàn
+│   ├── slot-manager.sh            # Quản lý đa game / đa slot chia sẻ 1 link Ngrok (add, list, stop)
 │   ├── setup-ios-web.sh           # Cài đặt tự động Web noVNC + Ngrok Static Tunnel
 │   ├── mode-active.sh             # Nâng ưu tiên CPU (renice 0) khi xem game
 │   ├── mode-idle.sh               # Hạ ưu tiên CPU (renice 15) khi treo ngầm
@@ -102,7 +103,22 @@ bash /opt/jar-manager/scripts/setup-ios-web.sh \
 # Khách mở Safari -> Nhập PIN -> Bấm 'Chia sẻ' -> 'Thêm vào MH chính' là xong!
 ```
 
-### 3.3. Quản lý Multi-VPS qua `vps_manager.py`
+### 3.3. Nhánh 3: Tận Dụng RAM Dư - Chạy Thêm Game Mới Cho Khách Khác (Chia sẻ 1 link Ngrok)
+```bash
+# Thêm Game mới (Ví dụ: Slot 2 - Avatar 250 - Mã PIN 2222):
+bash /opt/jar-manager/scripts/slot-manager.sh add 2 /opt/jar-manager/games/Avatar250.jar 2222 "Avatar 250"
+
+# Thêm Game tiếp theo (Ví dụ: Slot 3 - Ngọc Rồng - Mã PIN 3333):
+bash /opt/jar-manager/scripts/slot-manager.sh add 3 /opt/jar-manager/games/NRO.jar 3333 "Ngọc Rồng Online"
+
+# Xem danh sách các game/slot đang chạy trên VPS:
+bash /opt/jar-manager/scripts/slot-manager.sh list
+
+# Khách 2 vào link cũ nhưng nhập PIN 2222 -> Vào đúng Avatar 250!
+# Khách 3 vào link cũ nhưng nhập PIN 3333 -> Vào đúng Ngọc Rồng!
+```
+
+### 3.4. Quản lý Multi-VPS qua `vps_manager.py`
 ```bash
 # Xem danh sách VPS
 python tools/vps_manager.py list

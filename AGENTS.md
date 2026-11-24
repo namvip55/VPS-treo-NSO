@@ -148,8 +148,9 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
 │   ├── gamepad.js                  # Xử lý cảm ứng D-Pad 8 2 4 6 5 7 9
 │   └── manifest.json               # Cấu hình PWA toàn màn hình iOS
 └── scripts/
-    ├── start-acc.sh                # Bật game: start-acc.sh [tên_acc]
+    ├── start-acc.sh                # Bật game: start-acc.sh [tên_acc] [file_jar] [màn_hình_display]
     ├── stop-acc.sh                 # Tắt game: stop-acc.sh [tên_acc]
+    ├── slot-manager.sh             # Quản lý đa game / đa slot chia sẻ 1 link Ngrok (add, list, stop)
     ├── setup-ios-web.sh            # Cài noVNC + Ngrok tunnel cho iPhone
     ├── mode-active.sh              # Kích hoạt 60 FPS, renice 0 khi đang xem
     ├── mode-idle.sh                # Hạ renice 15 khi treo ngầm 24/7

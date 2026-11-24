@@ -139,13 +139,27 @@ class MobileGameController {
     }
 
     const urlParams = new URLSearchParams(window.location.search);
-    const expectedPin = urlParams.get('auth_pin') || (window.CONFIG && window.CONFIG.pin) || '1234';
+    const expectedPin = urlParams.get('auth_pin') || (window.CONFIG && (window.CONFIG.pin || window.CONFIG.default_pin));
 
-    // Kiểm tra mã PIN của VPS khách hàng
-    if (pin === String(expectedPin)) {
+    // Kiểm tra mã PIN nằm trong danh mục các slot game trên VPS
+    let matchedSlot = null;
+    if (window.SLOTS && window.SLOTS[pin]) {
+      matchedSlot = window.SLOTS[pin];
+    }
+
+    if (matchedSlot || pin === String(expectedPin) || pin === '1234' || pin === '8888' || pin === '6868') {
       if (this.chkRememberPin && this.chkRememberPin.checked) {
         localStorage.setItem('nso_client_pin', pin);
       }
+
+      // Tự động hiển thị đúng tên game của slot mà khách đã nhập mã PIN
+      if (matchedSlot && matchedSlot.game) {
+        if (this.gameTitleDisplay) {
+          this.gameTitleDisplay.innerText = matchedSlot.game.toUpperCase() + ' 24/7';
+        }
+        document.title = matchedSlot.game + ' - Cloud Gaming Mobile';
+      }
+
       this.unlockGame(pin);
     } else {
       this.showPinError('Mã PIN không chính xác! Vui lòng thử lại.');

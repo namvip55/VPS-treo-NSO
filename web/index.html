@@ -176,7 +176,9 @@
         const urlParams = new URLSearchParams(window.location.search);
         const host = urlParams.get('host') || window.location.hostname;
         const port = urlParams.get('port') || window.location.port || (window.location.protocol === 'https:' ? 443 : 80);
-        const path = urlParams.get('path') || 'websockify';
+        const basePath = urlParams.get('path') || 'websockify';
+        const tokenQuery = pin ? ('?token=' + encodeURIComponent(pin)) : '';
+        const path = basePath + tokenQuery;
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
         const vncUrl = `${protocol}://${host}:${port}/${path}`;
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 ACC="${1:-acc1}"
 JAR="${2:-/opt/jar-manager/games/game.jar}"
+DISP="${3:-1}"
 
 PROFILE_DIR="/opt/jar-manager/profiles/$ACC"
 PID_FILE="$PROFILE_DIR/$ACC.pid"
@@ -36,7 +37,7 @@ MIDLET_CLASS=$(unzip -p "$JAR" META-INF/MANIFEST.MF 2>/dev/null | grep -i '^MIDl
 MIDLET_NAME=$(unzip -p "$JAR" META-INF/MANIFEST.MF 2>/dev/null | grep -i '^MIDlet-Name:' | cut -d':' -f2 | tr -d '\r\n' | sed 's/^ *//')
 WINDOW_TITLE="${MIDLET_NAME:-$(basename "$JAR" .jar)}"
 
-export DISPLAY=:1
+export DISPLAY=":$DISP"
 if [ -n "$MIDLET_CLASS" ]; then
     setsid java $JAVA_OPTS -Duser.home="$PROFILE_DIR" -jar /opt/jar-manager/emulator/microemulator.jar --resizableDevice 800 550 "$MIDLET_CLASS" "$JAR" > /dev/null 2>&1 &
 else
@@ -45,16 +46,16 @@ fi
 
 NEW_PID=$!
 echo "$NEW_PID" > "$PID_FILE"
-echo "STARTED:$NEW_PID"
+echo "STARTED:$NEW_PID (DISPLAY :$DISP)"
 
 (
     sleep 2
-    WIDS=$(xdotool search --pid "$NEW_PID" 2>/dev/null)
+    WIDS=$(DISPLAY=":$DISP" xdotool search --pid "$NEW_PID" 2>/dev/null)
     for W in $WIDS; do
-        xdotool set_window --name "$WINDOW_TITLE" "$W" 2>/dev/null
-        wmctrl -ir "$W" -b add,maximized_vert,maximized_horz 2>/dev/null
-        xdotool windowactivate "$W" 2>/dev/null
+        DISPLAY=":$DISP" xdotool set_window --name "$WINDOW_TITLE" "$W" 2>/dev/null
+        DISPLAY=":$DISP" wmctrl -ir "$W" -b add,maximized_vert,maximized_horz 2>/dev/null
+        DISPLAY=":$DISP" xdotool windowactivate "$W" 2>/dev/null
         sleep 0.5
-        xdotool key --window "$W" Return 2>/dev/null
+        DISPLAY=":$DISP" xdotool key --window "$W" Return 2>/dev/null
     done
 ) &

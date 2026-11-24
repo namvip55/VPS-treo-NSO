@@ -1,6 +1,10 @@
-// Cấu hình máy chủ Web Mobile cho từng VPS khách hàng
+// Cấu hình Slot & Token Routing cho từng game trên VPS
+window.SLOTS = {
+  "1234": { acc: "acc1", game: "NSO GEMINI", slot: 1, port: 5901 },
+  "8888": { acc: "acc1", game: "NSO GEMINI", slot: 1, port: 5901 }
+};
+
 window.CONFIG = {
-  title: "NSO GEMINI 24/7",
-  account: "acc1",
-  pin: "1234" // Mã PIN mặc định (được tự động cập nhật khi chạy setup-ios-web.sh --pin <PIN>)
+  title: "MULTI-GAME CLOUD 24/7",
+  default_pin: "1234"
 };
