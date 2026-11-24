@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Net.Sockets;
 using System.Reflection;
@@ -15,12 +16,158 @@ namespace JarManagerAdmin
 {
     static class Program
     {
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDPIAware();
+
+        [DllImport("shcore.dll")]
+        private static extern int SetProcessDpiAwareness(int awareness);
+
         [STAThread]
         static void Main()
         {
+            // Kích hoạt nhận diện chuẩn High-DPI (200% scale) từ Windows
+            try
+            {
+                if (Environment.OSVersion.Version.Major >= 6)
+                {
+                    SetProcessDpiAwareness(2); // PROCESS_PER_MONITOR_DPI_AWARE
+                }
+            }
+            catch
+            {
+                try { SetProcessDPIAware(); } catch { }
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new DashboardForm());
+        }
+    }
+
+    public static class Dpi
+    {
+        public static float ScaleFactor = 1.0f;
+
+        public static void Init(Graphics g)
+        {
+            ScaleFactor = g.DpiX / 96.0f;
+            if (ScaleFactor < 1.0f) ScaleFactor = 1.0f;
+        }
+
+        public static int S(int val)
+        {
+            return (int)Math.Round(val * ScaleFactor);
+        }
+
+        public static float F(float val)
+        {
+            return val * ScaleFactor;
+        }
+
+        public static Size Size(int w, int h)
+        {
+            return new Size(S(w), S(h));
+        }
+
+        public static Point Point(int x, int y)
+        {
+            return new Point(S(x), S(y));
+        }
+
+        public static Padding Pad(int all)
+        {
+            return new Padding(S(all));
+        }
+
+        public static Padding Pad(int l, int t, int r, int b)
+        {
+            return new Padding(S(l), S(t), S(r), S(b));
+        }
+    }
+
+    public class ModernProgressBar : Control
+    {
+        private int val = 0;
+        private string textOverlay = "";
+
+        public int Value
+        {
+            get { return val; }
+            set
+            {
+                val = Math.Max(0, Math.Min(100, value));
+                this.Invalidate();
+            }
+        }
+
+        public string TextOverlay
+        {
+            get { return textOverlay; }
+            set
+            {
+                textOverlay = value;
+                this.Invalidate();
+            }
+        }
+
+        public ModernProgressBar()
+        {
+            this.SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            this.BackColor = Color.FromArgb(15, 23, 42);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Nền thanh bar
+            using (SolidBrush bgBrush = new SolidBrush(this.BackColor))
+            {
+                g.FillRectangle(bgBrush, this.ClientRectangle);
+            }
+
+            // Phần trăm tiến trình
+            if (val > 0)
+            {
+                int fillWidth = (int)((float)this.Width * val / 100f);
+                Rectangle fillRect = new Rectangle(0, 0, fillWidth, this.Height);
+
+                Color c1 = Color.FromArgb(59, 130, 246);  // Blue
+                Color c2 = Color.FromArgb(16, 185, 129); // Emerald
+                if (val > 80)
+                {
+                    c1 = Color.FromArgb(245, 158, 11);  // Amber
+                    c2 = Color.FromArgb(239, 68, 68);   // Red
+                }
+
+                using (LinearGradientBrush fillBrush = new LinearGradientBrush(fillRect, c1, c2, LinearGradientMode.Horizontal))
+                {
+                    g.FillRectangle(fillBrush, fillRect);
+                }
+            }
+
+            // Viền bo tinh tế
+            using (Pen borderPen = new Pen(Color.FromArgb(51, 65, 85), 1))
+            {
+                g.DrawRectangle(borderPen, 0, 0, this.Width - 1, this.Height - 1);
+            }
+
+            // Chữ hiển thị giữa thanh bar
+            if (!string.IsNullOrEmpty(textOverlay))
+            {
+                using (Font f = new Font("Segoe UI", Dpi.F(9f), FontStyle.Bold))
+                using (SolidBrush shadowBrush = new SolidBrush(Color.FromArgb(180, 0, 0, 0)))
+                using (SolidBrush textBrush = new SolidBrush(Color.White))
+                {
+                    SizeF sf = g.MeasureString(textOverlay, f);
+                    float tx = (this.Width - sf.Width) / 2f;
+                    float ty = (this.Height - sf.Height) / 2f;
+                    g.DrawString(textOverlay, f, shadowBrush, tx + 1, ty + 1);
+                    g.DrawString(textOverlay, f, textBrush, tx, ty);
+                }
+            }
         }
     }
 
@@ -40,22 +187,8 @@ namespace JarManagerAdmin
         public int PingMs { get; set; }
     }
 
-    public class SlotInfo
-    {
-        public int Slot { get; set; }
-        public string Game { get; set; }
-        public string Acc { get; set; }
-        public string Pin { get; set; }
-        public int Port { get; set; }
-        public string Status { get; set; }
-        public string Pid { get; set; }
-    }
-
     public class DashboardForm : Form
     {
-        [DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-
         private string projectDir;
         private string registryPath;
         private Dictionary<string, VpsInfo> servers = new Dictionary<string, VpsInfo>();
@@ -72,8 +205,8 @@ namespace JarManagerAdmin
         private Button btnExportExe;
 
         // Hardware Controls
-        private Label lblRamStats;
-        private ProgressBar prgRam;
+        private Label lblRamTitle;
+        private ModernProgressBar prgRam;
         private Label lblSwapStats;
         private Label lblCpuStats;
         private Label lblCapacityHint;
@@ -86,9 +219,15 @@ namespace JarManagerAdmin
         private Button btnAddSlot;
 
         private Process activeTunnel = null;
+        private ImageList imgSpacer = null;
 
         public DashboardForm()
         {
+            using (Graphics g = this.CreateGraphics())
+            {
+                Dpi.Init(g);
+            }
+
             InitializeData();
             InitializeUI();
             this.Shown += (s, e) => LoadRegistryAndCheckAll();
@@ -122,27 +261,30 @@ namespace JarManagerAdmin
 
         private void InitializeUI()
         {
-            this.Text = "JarManager Central Admin - Giám Sát VPS & Quản Lý Slot Game";
-            this.Size = new Size(980, 640);
-            this.MinimumSize = new Size(920, 600);
+            // Thiết lập cửa sổ chính với chuẩn High-DPI 200%
+            this.Text = "JarManager Central Admin 24/7 - Giám Sát VPS & Quản Lý Slot Game Mobile";
+            this.Size = Dpi.Size(1080, 720);
+            this.MinimumSize = Dpi.Size(960, 640);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = Color.FromArgb(243, 246, 250);
-            this.Font = new Font("Segoe UI", 9.5f);
+            this.BackColor = Color.FromArgb(11, 15, 25); // Deep Obsidian Dark
+            this.ForeColor = Color.FromArgb(241, 245, 249);
+            this.Font = new Font("Segoe UI", Dpi.F(9.5f));
 
             // --- MAIN LAYOUT: LEFT SIDEBAR + RIGHT CONTENT ---
             Panel pnlSidebar = new Panel
             {
                 Dock = DockStyle.Left,
-                Width = 280,
-                BackColor = Color.White,
-                Padding = new Padding(12)
+                Width = Dpi.S(310),
+                BackColor = Color.FromArgb(17, 24, 39), // Dark Slate
+                Padding = Dpi.Pad(14)
             };
             this.Controls.Add(pnlSidebar);
 
             Panel pnlContent = new Panel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(16, 12, 16, 16),
+                BackColor = Color.FromArgb(11, 15, 25),
+                Padding = Dpi.Pad(16),
                 AutoScroll = true
             };
             this.Controls.Add(pnlContent);
@@ -150,277 +292,350 @@ namespace JarManagerAdmin
             // --- SIDEBAR CONTENT ---
             Label lblSideTitle = new Label
             {
-                Text = "🖥️ DANH SÁCH VPS",
-                Font = new Font("Segoe UI", 11f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 41, 59),
-                Location = new Point(12, 12),
-                AutoSize = true
+                Text = "🖥️ DANH SÁCH MÁY CHỦ",
+                Font = new Font("Segoe UI", Dpi.F(11f), FontStyle.Bold),
+                ForeColor = Color.FromArgb(248, 250, 252),
+                Dock = DockStyle.Top,
+                Height = Dpi.S(32)
             };
             pnlSidebar.Controls.Add(lblSideTitle);
 
             btnRefreshAll = new Button
             {
-                Text = "🔄 Làm Mới Toàn Bộ",
-                Location = new Point(12, 40),
-                Size = new Size(256, 32),
-                BackColor = Color.FromArgb(238, 242, 246),
+                Text = "🔄 Làm Mới Trạng Thái",
+                Dock = DockStyle.Top,
+                Height = Dpi.S(38),
+                BackColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.FromArgb(226, 232, 240),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                Font = new Font("Segoe UI", Dpi.F(9.2f), FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnRefreshAll.FlatAppearance.BorderSize = 0;
             btnRefreshAll.Click += (s, e) => LoadRegistryAndCheckAll();
             pnlSidebar.Controls.Add(btnRefreshAll);
 
-            lstVps = new ListBox
-            {
-                Location = new Point(12, 80),
-                Size = new Size(256, 460),
-                BorderStyle = BorderStyle.FixedSingle,
-                Font = new Font("Segoe UI", 10f),
-                ItemHeight = 28,
-                DrawMode = DrawMode.OwnerDrawFixed
-            };
-            lstVps.DrawItem += LstVps_DrawItem;
-            lstVps.SelectedIndexChanged += (s, e) => OnSelectedVpsChanged();
-            pnlSidebar.Controls.Add(lstVps);
+            // Khoảng đệm
+            Panel pad1 = new Panel { Dock = DockStyle.Top, Height = Dpi.S(10), BackColor = Color.Transparent };
+            pnlSidebar.Controls.Add(pad1);
 
             btnAddVps = new Button
             {
                 Text = "+ Thêm VPS Mới",
-                Location = new Point(12, 550),
-                Size = new Size(256, 36),
-                BackColor = Color.FromArgb(37, 99, 235),
+                Dock = DockStyle.Bottom,
+                Height = Dpi.S(44),
+                BackColor = Color.FromArgb(37, 99, 235), // Electric Blue
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Font = new Font("Segoe UI", Dpi.F(10f), FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnAddVps.FlatAppearance.BorderSize = 0;
             btnAddVps.Click += (s, e) => ShowAddVpsDialog();
             pnlSidebar.Controls.Add(btnAddVps);
 
-            // --- CONTENT: TOP HEADER CARD ---
+            Panel pad2 = new Panel { Dock = DockStyle.Bottom, Height = Dpi.S(10), BackColor = Color.Transparent };
+            pnlSidebar.Controls.Add(pad2);
+
+            lstVps = new ListBox
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.FromArgb(241, 245, 249),
+                BorderStyle = BorderStyle.None,
+                Font = new Font("Segoe UI", Dpi.F(10f)),
+                ItemHeight = Dpi.S(54), // Spacing rộng cho màn hình 200%
+                DrawMode = DrawMode.OwnerDrawFixed
+            };
+            lstVps.DrawItem += LstVps_DrawItem;
+            lstVps.SelectedIndexChanged += (s, e) => OnSelectedVpsChanged();
+            pnlSidebar.Controls.Add(lstVps);
+
+            // Đưa các control sidebar về đúng thứ tự dock
+            lstVps.BringToFront();
+
+            // --- RIGHT CONTENT PANELS ---
+            // 1. TOP HEADER PANEL
             Panel pnlHeader = new Panel
             {
-                Location = new Point(0, 0),
-                Size = new Size(660, 80),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle
+                Dock = DockStyle.Top,
+                Height = Dpi.S(90),
+                BackColor = Color.FromArgb(22, 31, 48), // Navy Glass Card
+                Padding = Dpi.Pad(14)
             };
             pnlContent.Controls.Add(pnlHeader);
 
             lblHeaderTitle = new Label
             {
-                Text = "Đang chọn VPS...",
-                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 23, 42),
-                Location = new Point(14, 10),
+                Text = "Chưa có VPS nào được chọn",
+                Font = new Font("Segoe UI", Dpi.F(13f), FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = Dpi.Point(14, 10),
                 AutoSize = true
             };
             pnlHeader.Controls.Add(lblHeaderTitle);
 
             lblHeaderSub = new Label
             {
-                Text = "Host: - | Port: -",
-                Font = new Font("Segoe UI", 9.5f),
-                ForeColor = Color.FromArgb(100, 116, 139),
-                Location = new Point(15, 36),
+                Text = "Host: - | Port NAT: -",
+                Font = new Font("Segoe UI", Dpi.F(9.5f)),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Location = Dpi.Point(15, 38),
                 AutoSize = true
             };
             pnlHeader.Controls.Add(lblHeaderSub);
 
             lblStatusBadge = new Label
             {
-                Text = "[○] ĐANG KIỂM TRA...",
-                Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(100, 116, 139),
-                Location = new Point(15, 56),
+                Text = "[○] ĐANG CHỜ...",
+                Font = new Font("Segoe UI", Dpi.F(9.5f), FontStyle.Bold),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Location = Dpi.Point(15, 60),
                 AutoSize = true
             };
             pnlHeader.Controls.Add(lblStatusBadge);
 
-            btnCopyIphoneLink = new Button
-            {
-                Text = "📱 Link Web iPhone",
-                Location = new Point(400, 12),
-                Size = new Size(125, 32),
-                BackColor = Color.FromArgb(240, 253, 244),
-                ForeColor = Color.FromArgb(21, 128, 61),
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8.8f, FontStyle.Bold),
-                Cursor = Cursors.Hand
-            };
-            btnCopyIphoneLink.FlatAppearance.BorderColor = Color.FromArgb(187, 247, 208);
-            btnCopyIphoneLink.Click += (s, e) => CopyIphoneLink();
-            pnlHeader.Controls.Add(btnCopyIphoneLink);
-
             btnExportExe = new Button
             {
-                Text = "📦 Xuất File EXE",
-                Location = new Point(530, 12),
-                Size = new Size(115, 32),
-                BackColor = Color.FromArgb(238, 242, 246),
-                ForeColor = Color.FromArgb(30, 41, 59),
+                Text = "📦 Xuất App Windows",
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = Dpi.Point(pnlHeader.Width - Dpi.S(165), 18),
+                Size = Dpi.Size(150, 42),
+                BackColor = Color.FromArgb(51, 65, 85),
+                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8.8f, FontStyle.Bold),
+                Font = new Font("Segoe UI", Dpi.F(9.2f), FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnExportExe.FlatAppearance.BorderSize = 0;
             btnExportExe.Click += (s, e) => ExportExeForClient();
             pnlHeader.Controls.Add(btnExportExe);
 
-            // --- CONTENT: HARDWARE METRICS CARD ---
-            GroupBox grpSpecs = new GroupBox
+            btnCopyIphoneLink = new Button
+            {
+                Text = "📱 Link Web Phone (Safari)",
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = Dpi.Point(pnlHeader.Width - Dpi.S(360), 18),
+                Size = Dpi.Size(185, 42),
+                BackColor = Color.FromArgb(16, 185, 129), // Emerald
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", Dpi.F(9.2f), FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnCopyIphoneLink.FlatAppearance.BorderSize = 0;
+            btnCopyIphoneLink.Click += (s, e) => CopyIphoneLink();
+            pnlHeader.Controls.Add(btnCopyIphoneLink);
+
+            pnlHeader.Resize += (s, e) =>
+            {
+                btnExportExe.Left = pnlHeader.ClientSize.Width - btnExportExe.Width - Dpi.S(14);
+                btnCopyIphoneLink.Left = btnExportExe.Left - btnCopyIphoneLink.Width - Dpi.S(10);
+            };
+
+            // Khoảng đệm giữa Header và Hardware
+            Panel padHw = new Panel { Dock = DockStyle.Top, Height = Dpi.S(12), BackColor = Color.Transparent };
+            pnlContent.Controls.Add(padHw);
+
+            // 2. HARDWARE METRICS CARD
+            Panel pnlHw = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = Dpi.S(145),
+                BackColor = Color.FromArgb(22, 31, 48),
+                Padding = Dpi.Pad(14)
+            };
+            pnlContent.Controls.Add(pnlHw);
+
+            Label lblHwHeader = new Label
             {
                 Text = "📊 THÔNG SỐ PHẦN CỨNG & TÀI NGUYÊN MÁY CHỦ",
-                Location = new Point(0, 92),
-                Size = new Size(660, 140),
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 41, 59),
-                BackColor = Color.White
-            };
-            pnlContent.Controls.Add(grpSpecs);
-
-            lblRamStats = new Label
-            {
-                Text = "RAM: Đang đo...",
-                Font = new Font("Segoe UI", 9.5f),
-                ForeColor = Color.FromArgb(51, 65, 85),
-                Location = new Point(16, 25),
+                Font = new Font("Segoe UI", Dpi.F(10f), FontStyle.Bold),
+                ForeColor = Color.FromArgb(248, 250, 252),
+                Location = Dpi.Point(14, 10),
                 AutoSize = true
             };
-            grpSpecs.Controls.Add(lblRamStats);
+            pnlHw.Controls.Add(lblHwHeader);
 
-            prgRam = new ProgressBar
+            lblRamTitle = new Label
             {
-                Location = new Point(18, 48),
-                Size = new Size(620, 14),
-                Value = 0,
-                Maximum = 100
+                Text = "RAM: Đang đo...",
+                Font = new Font("Segoe UI", Dpi.F(9.2f)),
+                ForeColor = Color.FromArgb(203, 213, 225),
+                Location = Dpi.Point(14, 36),
+                AutoSize = true
             };
-            grpSpecs.Controls.Add(prgRam);
+            pnlHw.Controls.Add(lblRamTitle);
+
+            prgRam = new ModernProgressBar
+            {
+                Location = Dpi.Point(14, 60),
+                Size = Dpi.Size(600, 24),
+                Value = 0,
+                TextOverlay = "0%"
+            };
+            pnlHw.Controls.Add(prgRam);
+
+            pnlHw.Resize += (s, e) =>
+            {
+                prgRam.Width = pnlHw.ClientSize.Width - Dpi.S(28);
+            };
 
             lblSwapStats = new Label
             {
                 Text = "Swap: -",
-                Font = new Font("Segoe UI", 9f),
-                ForeColor = Color.FromArgb(100, 116, 139),
-                Location = new Point(16, 68),
+                Font = new Font("Segoe UI", Dpi.F(9f)),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Location = Dpi.Point(14, 92),
                 AutoSize = true
             };
-            grpSpecs.Controls.Add(lblSwapStats);
+            pnlHw.Controls.Add(lblSwapStats);
 
             lblCpuStats = new Label
             {
                 Text = "CPU Load: -",
-                Font = new Font("Segoe UI", 9f),
-                ForeColor = Color.FromArgb(100, 116, 139),
-                Location = new Point(320, 68),
+                Font = new Font("Segoe UI", Dpi.F(9f)),
+                ForeColor = Color.FromArgb(148, 163, 184),
+                Location = Dpi.Point(320, 92),
                 AutoSize = true
             };
-            grpSpecs.Controls.Add(lblCpuStats);
+            pnlHw.Controls.Add(lblCpuStats);
 
             lblCapacityHint = new Label
             {
-                Text = "💡 Đánh giá sức chứa: Đang phân tích...",
-                Font = new Font("Segoe UI", 9f, FontStyle.Italic),
-                ForeColor = Color.FromArgb(21, 128, 61),
-                Location = new Point(16, 100),
+                Text = "💡 Sức chứa: Vui lòng kết nối để đo lường...",
+                Font = new Font("Segoe UI", Dpi.F(9.2f), FontStyle.Italic),
+                ForeColor = Color.FromArgb(52, 211, 153),
+                Location = Dpi.Point(14, 116),
                 AutoSize = true
             };
-            grpSpecs.Controls.Add(lblCapacityHint);
+            pnlHw.Controls.Add(lblCapacityHint);
 
-            // --- CONTENT: GAME SLOTS CARD ---
-            GroupBox grpSlots = new GroupBox
+            // Khoảng đệm giữa Hardware và Game Slots
+            Panel padSlot = new Panel { Dock = DockStyle.Top, Height = Dpi.S(12), BackColor = Color.Transparent };
+            pnlContent.Controls.Add(padSlot);
+
+            // 3. GAME SLOTS CARD
+            Panel pnlSlotsCard = new Panel
             {
-                Text = "🎮 CÁC TỰA GAME & SLOT ĐANG TREO TRÊN VPS NÀY",
-                Location = new Point(0, 242),
-                Size = new Size(660, 330),
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 41, 59),
-                BackColor = Color.White
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(22, 31, 48),
+                Padding = Dpi.Pad(14)
             };
-            pnlContent.Controls.Add(grpSlots);
+            pnlContent.Controls.Add(pnlSlotsCard);
 
-            lvwSlots = new ListView
+            Label lblSlotsHeader = new Label
             {
-                Location = new Point(16, 26),
-                Size = new Size(624, 220),
-                View = View.Details,
-                FullRowSelect = true,
-                GridLines = true,
-                Font = new Font("Segoe UI", 9.5f),
-                MultiSelect = false
+                Text = "🎮 CÁC TỰA GAME & SLOT ĐANG TREO (CHIA SẺ 1 LINK NGROK)",
+                Font = new Font("Segoe UI", Dpi.F(10f), FontStyle.Bold),
+                ForeColor = Color.FromArgb(248, 250, 252),
+                Dock = DockStyle.Top,
+                Height = Dpi.S(30)
             };
-            lvwSlots.Columns.Add("SLOT", 65);
-            lvwSlots.Columns.Add("TỰA GAME", 160);
-            lvwSlots.Columns.Add("ACC / PROFILE", 95);
-            lvwSlots.Columns.Add("MÃ PIN", 75);
-            lvwSlots.Columns.Add("PORT VNC", 80);
-            lvwSlots.Columns.Add("TRẠNG THÁI", 140);
-            grpSlots.Controls.Add(lvwSlots);
+            pnlSlotsCard.Controls.Add(lblSlotsHeader);
 
-            // Slot Action Buttons
+            // Action Buttons Panel ở đáy Game Slots Card
+            Panel pnlSlotActions = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = Dpi.S(54),
+                Padding = Dpi.Pad(0, 10, 0, 0)
+            };
+            pnlSlotsCard.Controls.Add(pnlSlotActions);
+
             btnViewGame = new Button
             {
                 Text = "▶ Xem Live Màn Hình",
-                Location = new Point(16, 260),
-                Size = new Size(160, 36),
-                BackColor = Color.FromArgb(22, 163, 74),
+                Size = Dpi.Size(180, 40),
+                Location = Dpi.Point(0, 8),
+                BackColor = Color.FromArgb(16, 185, 129), // Emerald
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Font = new Font("Segoe UI", Dpi.F(9.5f), FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnViewGame.FlatAppearance.BorderSize = 0;
             btnViewGame.Click += (s, e) => ViewSelectedSlotGame();
-            grpSlots.Controls.Add(btnViewGame);
+            pnlSlotActions.Controls.Add(btnViewGame);
 
             btnRestartSlot = new Button
             {
                 Text = "↺ Khởi Động Lại",
-                Location = new Point(184, 260),
-                Size = new Size(125, 36),
-                BackColor = Color.FromArgb(238, 242, 246),
-                ForeColor = Color.FromArgb(30, 41, 59),
+                Size = Dpi.Size(140, 40),
+                Location = Dpi.Point(190, 8),
+                BackColor = Color.FromArgb(51, 65, 85),
+                ForeColor = Color.FromArgb(241, 245, 249),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                Font = new Font("Segoe UI", Dpi.F(9.2f), FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnRestartSlot.FlatAppearance.BorderSize = 0;
             btnRestartSlot.Click += (s, e) => RestartSelectedSlot();
-            grpSlots.Controls.Add(btnRestartSlot);
+            pnlSlotActions.Controls.Add(btnRestartSlot);
 
             btnDeleteSlot = new Button
             {
                 Text = "🗑 Xóa Slot Khách",
-                Location = new Point(316, 260),
-                Size = new Size(130, 36),
-                BackColor = Color.FromArgb(254, 226, 226),
-                ForeColor = Color.FromArgb(185, 28, 28),
+                Size = Dpi.Size(150, 40),
+                Location = Dpi.Point(340, 8),
+                BackColor = Color.FromArgb(153, 27, 27),
+                ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                Font = new Font("Segoe UI", Dpi.F(9.2f), FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnDeleteSlot.FlatAppearance.BorderSize = 0;
             btnDeleteSlot.Click += (s, e) => RemoveSelectedSlot();
-            grpSlots.Controls.Add(btnDeleteSlot);
+            pnlSlotActions.Controls.Add(btnDeleteSlot);
 
             btnAddSlot = new Button
             {
                 Text = "+ Thêm Slot Game Mới",
-                Location = new Point(460, 260),
-                Size = new Size(180, 36),
-                BackColor = Color.FromArgb(37, 99, 235),
+                Size = Dpi.Size(200, 40),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = Dpi.Point(pnlSlotActions.Width - Dpi.S(200), 8),
+                BackColor = Color.FromArgb(37, 99, 235), // Electric Blue
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Font = new Font("Segoe UI", Dpi.F(9.5f), FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnAddSlot.FlatAppearance.BorderSize = 0;
             btnAddSlot.Click += (s, e) => ShowAddSlotDialog();
-            grpSlots.Controls.Add(btnAddSlot);
+            pnlSlotActions.Controls.Add(btnAddSlot);
+
+            pnlSlotActions.Resize += (s, e) =>
+            {
+                btnAddSlot.Left = pnlSlotActions.ClientSize.Width - btnAddSlot.Width;
+            };
+
+            // Spacer trick cho ListView row height chuẩn 200% scale
+            imgSpacer = new ImageList();
+            imgSpacer.ImageSize = new Size(1, Dpi.S(36));
+
+            lvwSlots = new ListView
+            {
+                Dock = DockStyle.Fill,
+                View = View.Details,
+                FullRowSelect = true,
+                GridLines = true,
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.FromArgb(241, 245, 249),
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new Font("Segoe UI", Dpi.F(10f)),
+                MultiSelect = false,
+                SmallImageList = imgSpacer
+            };
+            lvwSlots.Columns.Add("SLOT", Dpi.S(90));
+            lvwSlots.Columns.Add("TỰA GAME", Dpi.S(200));
+            lvwSlots.Columns.Add("ACC / PROFILE", Dpi.S(120));
+            lvwSlots.Columns.Add("MÃ PIN", Dpi.S(100));
+            lvwSlots.Columns.Add("PORT VNC", Dpi.S(100));
+            lvwSlots.Columns.Add("TRẠNG THÁI", Dpi.S(180));
+            pnlSlotsCard.Controls.Add(lvwSlots);
+
+            // Đưa đúng thứ tự Dock
+            lvwSlots.BringToFront();
 
             this.FormClosing += (s, e) =>
             {
@@ -437,22 +652,61 @@ namespace JarManagerAdmin
             string key = lstVps.Items[e.Index].ToString();
             VpsInfo info = servers.ContainsKey(key) ? servers[key] : null;
 
-            e.DrawBackground();
-            bool isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            Color dotColor = info != null && info.IsOnline ? Color.FromArgb(34, 197, 94) : Color.FromArgb(239, 68, 68);
+            bool isSelected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            Rectangle rect = e.Bounds;
+
+            // Nền thẻ Card VPS
+            Color bgColor = isSelected ? Color.FromArgb(30, 58, 138) : (e.Index % 2 == 0 ? Color.FromArgb(17, 24, 39) : Color.FromArgb(15, 23, 42));
+            using (SolidBrush b = new SolidBrush(bgColor))
+            {
+                g.FillRectangle(b, rect);
+            }
+
+            // Dải highlight bên trái khi chọn
+            if (isSelected)
+            {
+                using (SolidBrush bHighlight = new SolidBrush(Color.FromArgb(59, 130, 246)))
+                {
+                    g.FillRectangle(bHighlight, rect.X, rect.Y, Dpi.S(5), rect.Height);
+                }
+            }
+
+            // Chấm trạng thái Online/Offline
+            Color dotColor = (info != null && info.IsOnline) ? Color.FromArgb(16, 185, 129) : Color.FromArgb(239, 68, 68);
             using (SolidBrush dotBrush = new SolidBrush(dotColor))
             {
-                e.Graphics.FillEllipse(dotBrush, e.Bounds.X + 8, e.Bounds.Y + 9, 10, 10);
+                int dotSize = Dpi.S(10);
+                g.FillEllipse(dotBrush, rect.X + Dpi.S(12), rect.Y + (rect.Height - dotSize) / 2, dotSize, dotSize);
             }
 
-            string text = info != null ? string.Format("{0} ({1})", info.Name, info.Host) : key;
-            Color textColor = isSelected ? Color.White : Color.FromArgb(30, 41, 59);
-            using (SolidBrush textBrush = new SolidBrush(textColor))
+            // Tên máy chủ (Title)
+            string title = info != null ? info.Name : key;
+            using (Font titleFont = new Font("Segoe UI", Dpi.F(9.8f), FontStyle.Bold))
+            using (SolidBrush titleBrush = new SolidBrush(Color.FromArgb(248, 250, 252)))
             {
-                e.Graphics.DrawString(text, e.Font, textBrush, e.Bounds.X + 24, e.Bounds.Y + 5);
+                g.DrawString(title, titleFont, titleBrush, rect.X + Dpi.S(30), rect.Y + Dpi.S(8));
             }
-            e.DrawFocusRectangle();
+
+            // Phụ đề (Host:Port)
+            string sub = info != null ? string.Format("{0}:{1}", info.Host, info.Port) : "";
+            if (info != null && info.IsOnline && info.PingMs > 0)
+            {
+                sub += string.Format(" • {0}ms", info.PingMs);
+            }
+            using (Font subFont = new Font("Segoe UI", Dpi.F(8.5f)))
+            using (SolidBrush subBrush = new SolidBrush(Color.FromArgb(148, 163, 184)))
+            {
+                g.DrawString(sub, subFont, subBrush, rect.X + Dpi.S(30), rect.Y + Dpi.S(28));
+            }
+
+            // Đường kẻ đáy phân cách
+            using (Pen linePen = new Pen(Color.FromArgb(30, 41, 59), 1))
+            {
+                g.DrawLine(linePen, rect.X, rect.Bottom - 1, rect.Right, rect.Bottom - 1);
+            }
         }
 
         private void LoadRegistryAndCheckAll()
@@ -462,7 +716,8 @@ namespace JarManagerAdmin
 
             if (!File.Exists(registryPath))
             {
-                MessageBox.Show("Không tìm thấy file vps_registry.json!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                lblHeaderTitle.Text = "Chưa có VPS nào trong danh bạ";
+                lblHeaderSub.Text = "Bấm nút '+ Thêm VPS Mới' để bắt đầu";
                 return;
             }
 
@@ -473,13 +728,16 @@ namespace JarManagerAdmin
                 Dictionary<string, object> dict = js.Deserialize<Dictionary<string, object>>(json);
 
                 Dictionary<string, object> srvDict = null;
-                if (dict.ContainsKey("servers"))
+                if (dict != null)
                 {
-                    srvDict = dict["servers"] as Dictionary<string, object>;
-                }
-                else
-                {
-                    srvDict = dict;
+                    if (dict.ContainsKey("servers"))
+                    {
+                        srvDict = dict["servers"] as Dictionary<string, object>;
+                    }
+                    else
+                    {
+                        srvDict = dict;
+                    }
                 }
 
                 if (srvDict != null)
@@ -512,6 +770,18 @@ namespace JarManagerAdmin
                 if (lstVps.Items.Count > 0)
                 {
                     lstVps.SelectedIndex = 0;
+                }
+                else
+                {
+                    lblHeaderTitle.Text = "Hệ thống đang trống";
+                    lblHeaderSub.Text = "Vui lòng thêm VPS mới để bắt đầu quản lý";
+                    lblRamTitle.Text = "RAM: -";
+                    prgRam.Value = 0;
+                    prgRam.TextOverlay = "0%";
+                    lblSwapStats.Text = "Swap: -";
+                    lblCpuStats.Text = "CPU Load: -";
+                    lblCapacityHint.Text = "💡 Đánh giá sức chứa: Hệ thống sẵn sàng tiếp nhận VPS mới.";
+                    lvwSlots.Items.Clear();
                 }
 
                 // Chạy ping & kiểm tra port ngầm
@@ -567,17 +837,18 @@ namespace JarManagerAdmin
             if (currentVps.IsOnline)
             {
                 lblStatusBadge.Text = string.Format("[●] ONLINE ({0} ms)", currentVps.PingMs);
-                lblStatusBadge.ForeColor = Color.FromArgb(22, 163, 74);
+                lblStatusBadge.ForeColor = Color.FromArgb(52, 211, 153); // Emerald
             }
             else
             {
                 lblStatusBadge.Text = "[○] OFFLINE (Chưa thể kết nối)";
-                lblStatusBadge.ForeColor = Color.FromArgb(220, 38, 38);
+                lblStatusBadge.ForeColor = Color.FromArgb(248, 113, 113); // Red
             }
 
             // Xóa dữ liệu cũ
-            lblRamStats.Text = "RAM: Đang kết nối SSH đọc thông số...";
+            lblRamTitle.Text = "RAM: Đang kết nối SSH đọc thông số...";
             prgRam.Value = 0;
+            prgRam.TextOverlay = "Đang đọc...";
             lvwSlots.Items.Clear();
 
             // Nạp thông số chi tiết qua SSH ngầm
@@ -586,23 +857,24 @@ namespace JarManagerAdmin
 
         private void FetchVpsDetailsAsync(VpsInfo vps)
         {
-            // Lệnh kết hợp: Đọc RAM, Swap, Load, và slots.json
             string remoteCmd = "free -m; echo '---LOAD---'; cat /proc/loadavg 2>/dev/null; echo '---SLOTS---'; cat /opt/jar-manager/slots.json 2>/dev/null || echo '{}'; echo '---PROCESSES---'; ps -eo pid,cmd | grep java | grep -v grep";
             string output = ExecuteSsh(vps, remoteCmd);
 
             SafeInvoke(() =>
             {
-                if (currentVps != vps) return; // Người dùng đã chuyển sang VPS khác
+                if (currentVps != vps) return;
                 ParseAndUpdateVpsStats(output);
             });
         }
 
         private void ParseAndUpdateVpsStats(string raw)
         {
-            if (string.IsNullOrEmpty(raw))
+            if (string.IsNullOrEmpty(raw) || raw.StartsWith("ERR:"))
             {
-                lblRamStats.Text = "RAM: Không thể lấy dữ liệu (Mất kết nối SSH hoặc VPS tắt)";
-                lblCapacityHint.Text = "💡 Đánh giá sức chứa: Vui lòng kiểm tra lại trạng thái VPS.";
+                lblRamTitle.Text = "RAM: Không thể lấy dữ liệu (Mất kết nối SSH hoặc VPS tắt)";
+                prgRam.Value = 0;
+                prgRam.TextOverlay = "Không có tín hiệu";
+                lblCapacityHint.Text = "💡 Đánh giá sức chứa: Vui lòng kiểm tra lại trạng thái mạng VPS.";
                 return;
             }
 
@@ -622,7 +894,8 @@ namespace JarManagerAdmin
                     if (pctUsed > 100) pctUsed = 100;
 
                     prgRam.Value = pctUsed;
-                    lblRamStats.Text = string.Format("RAM: {0} MB / {1} MB (Còn trống: {2} MB - {3}% Rảnh)",
+                    prgRam.TextOverlay = string.Format("{0}% ({1} MB / {2} MB)", pctUsed, totalRam - availRam, totalRam);
+                    lblRamTitle.Text = string.Format("RAM: {0} MB / {1} MB (Còn trống: {2} MB - {3}% Rảnh)",
                         totalRam - availRam, totalRam, availRam, 100 - pctUsed);
 
                     int estGames = availRam / 70;
@@ -682,15 +955,15 @@ namespace JarManagerAdmin
                                 lvi.SubItems.Add(status);
                                 lvi.Tag = sid;
 
-                                if (isRunning) lvi.ForeColor = Color.FromArgb(22, 163, 74);
-                                else lvi.ForeColor = Color.FromArgb(100, 116, 139);
+                                if (isRunning) lvi.ForeColor = Color.FromArgb(52, 211, 153); // Emerald
+                                else lvi.ForeColor = Color.FromArgb(148, 163, 184);
 
                                 lvwSlots.Items.Add(lvi);
                             }
                         }
                     }
 
-                    // Nếu chưa có slot nào trong slots.json, kiểm tra game mặc định
+                    // Nếu chưa có slot nào trong slots.json, hiển thị slot 1 mặc định
                     if (lvwSlots.Items.Count == 0)
                     {
                         bool isDefRunning = procsPart.Contains("microemulator");
@@ -701,7 +974,7 @@ namespace JarManagerAdmin
                         lvi.SubItems.Add("5901");
                         lvi.SubItems.Add(isDefRunning ? "✔ Đang cày 24/7" : "■ Đã dừng");
                         lvi.Tag = 1;
-                        if (isDefRunning) lvi.ForeColor = Color.FromArgb(22, 163, 74);
+                        if (isDefRunning) lvi.ForeColor = Color.FromArgb(52, 211, 153);
                         lvwSlots.Items.Add(lvi);
                     }
                 }
@@ -875,21 +1148,34 @@ namespace JarManagerAdmin
             using (Form f = new Form())
             {
                 f.Text = "Thêm Slot Game Mới Cho Khách Trên " + currentVps.Id;
-                f.Size = new Size(420, 260);
+                f.Size = Dpi.Size(460, 300);
                 f.StartPosition = FormStartPosition.CenterParent;
                 f.FormBorderStyle = FormBorderStyle.FixedDialog;
                 f.MaximizeBox = false;
+                f.BackColor = Color.FromArgb(17, 24, 39);
+                f.ForeColor = Color.White;
+                f.Font = new Font("Segoe UI", Dpi.F(9.5f));
 
-                Label l1 = new Label { Text = "Số thứ tự Slot (ví dụ: 2, 3):", Location = new Point(20, 15), AutoSize = true };
-                TextBox txtSlot = new TextBox { Text = (lvwSlots.Items.Count + 1).ToString(), Location = new Point(20, 35), Width = 100 };
+                Label l1 = new Label { Text = "Số thứ tự Slot (ví dụ: 2, 3):", Location = Dpi.Point(20, 15), AutoSize = true, ForeColor = Color.FromArgb(226, 232, 240) };
+                TextBox txtSlot = new TextBox { Text = (lvwSlots.Items.Count + 1).ToString(), Location = Dpi.Point(20, 38), Width = Dpi.S(120), BackColor = Color.FromArgb(15, 23, 42), ForeColor = Color.White };
 
-                Label l2 = new Label { Text = "Tên Game (ví dụ: Avatar 250):", Location = new Point(20, 65), AutoSize = true };
-                TextBox txtGame = new TextBox { Text = "Game Moi", Location = new Point(20, 85), Width = 360 };
+                Label l2 = new Label { Text = "Tên Game (ví dụ: Avatar 250):", Location = Dpi.Point(20, 72), AutoSize = true, ForeColor = Color.FromArgb(226, 232, 240) };
+                TextBox txtGame = new TextBox { Text = "Avatar 250", Location = Dpi.Point(20, 95), Width = Dpi.S(400), BackColor = Color.FromArgb(15, 23, 42), ForeColor = Color.White };
 
-                Label l3 = new Label { Text = "Mã PIN cấp cho khách (4 số):", Location = new Point(20, 115), AutoSize = true };
-                TextBox txtPin = new TextBox { Text = new Random().Next(1000, 9999).ToString(), Location = new Point(20, 135), Width = 150 };
+                Label l3 = new Label { Text = "Mã PIN cấp cho khách (4 số):", Location = Dpi.Point(20, 130), AutoSize = true, ForeColor = Color.FromArgb(226, 232, 240) };
+                TextBox txtPin = new TextBox { Text = new Random().Next(1000, 9999).ToString(), Location = Dpi.Point(20, 153), Width = Dpi.S(160), BackColor = Color.FromArgb(15, 23, 42), ForeColor = Color.White };
 
-                Button btnOk = new Button { Text = "Kích Hoạt Slot", Location = new Point(240, 175), Size = new Size(140, 32), BackColor = Color.FromArgb(37, 99, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+                Button btnOk = new Button
+                {
+                    Text = "Kích Hoạt Slot",
+                    Location = Dpi.Point(260, 205),
+                    Size = Dpi.Size(160, 40),
+                    BackColor = Color.FromArgb(37, 99, 235),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", Dpi.F(10f), FontStyle.Bold)
+                };
+                btnOk.FlatAppearance.BorderSize = 0;
                 btnOk.Click += (s, e) =>
                 {
                     int sid;
@@ -954,7 +1240,7 @@ namespace JarManagerAdmin
 
         private void ShowAddVpsDialog()
         {
-            MessageBox.Show("Để thêm VPS mới vào danh bạ, hãy cập nhật thông tin trong file 'vps_registry.json' hoặc dùng lệnh:\npython tools/vps_manager.py list",
+            MessageBox.Show("Để thêm VPS mới vào danh bạ, hãy cập nhật thông tin theo mẫu tại file 'VPS_SPEC_TEMPLATE.md' hoặc dùng lệnh:\npython tools/vps_manager.py update-vps <name-vps> <host:port>",
                 "Hướng dẫn thêm VPS", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }

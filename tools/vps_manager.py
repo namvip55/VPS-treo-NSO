@@ -419,16 +419,17 @@ def cmd_remove_client(args):
 
 def cmd_gui(args):
     exe_path = os.path.join(BASE_DIR, "AdminDashboard.exe")
-    if not os.path.exists(exe_path):
-        print("[*] Dang bien dich AdminDashboard.exe...")
+    src = os.path.join(BASE_DIR, "tools", "AdminDashboard.cs")
+    need_build = not os.path.exists(exe_path) or (os.path.exists(src) and os.path.getmtime(src) > os.path.getmtime(exe_path))
+    if need_build:
+        print("[*] Đang biên dịch AdminDashboard.exe (hỗ trợ High-DPI 200%)...")
         csc = r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-        src = os.path.join(BASE_DIR, "tools", "AdminDashboard.cs")
-        cmd = [csc, "/target:winexe", "/r:System.Web.Extensions.dll", f"/out:{exe_path}", src]
+        cmd = [csc, "/nologo", "/target:winexe", "/r:System.Web.Extensions.dll", f"/out:{exe_path}", src]
         res = subprocess.run(cmd, capture_output=True, text=True)
         if res.returncode != 0:
-            print(f"[!] Loi bien dich: {res.stderr}")
+            print(f"[!] Lỗi biên dịch: {res.stderr}")
             return
-    print("[+] Dang mo giao dien JarManager Central Admin Dashboard...")
+    print("[+] Đang mở giao diện JarManager Central Admin Dashboard...")
     subprocess.Popen([exe_path], cwd=BASE_DIR)
 
 def normalize_vps_args(args):
