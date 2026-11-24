@@ -42,7 +42,7 @@ case "$ACTION" in
 
         echo "=== [1/4] KHOI TAO MAN HINH AO VNC :${SLOT_ID} (PORT ${VNC_PORT}) ==="
         # Kiem tra neu display da chay, neu chua thi bat len
-        if ! pgrep -f "Xtigervnc :${SLOT_ID}" > /dev/null 2>&1; then
+        if ! pgrep -f "Xtigervnc :${SLOT_ID} " > /dev/null 2>&1 && [ ! -e "/tmp/.X11-unix/X${SLOT_ID}" ]; then
             /usr/bin/vncserver -kill ":${SLOT_ID}" >/dev/null 2>&1 || true
             /usr/bin/vncserver ":${SLOT_ID}" -geometry 800x600 -depth 16 -localhost yes -SecurityTypes None
         fi

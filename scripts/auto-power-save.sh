@@ -5,11 +5,6 @@
 # Không có ai kết nối VNC -> Chế độ Idle (renice 15, tiết kiệm CPU tối đa).
 # ==============================================================================
 
-IS_ACTIVE=0
-if ss -H -t -n sport = :5901 2>/dev/null | grep -q 'ESTAB'; then
-    IS_ACTIVE=1
-fi
-
 TARGET_ACCS="$@"
 if [ -z "$TARGET_ACCS" ]; then
     if [ -d "/opt/jar-manager/profiles" ]; then
@@ -21,7 +16,11 @@ if [ -z "$TARGET_ACCS" ]; then
 fi
 
 for ACC in $TARGET_ACCS; do
-    if [ "$IS_ACTIVE" -eq 1 ]; then
+    PORT=5901
+    if [[ "$ACC" =~ ^slot([0-9]+)$ ]]; then
+        PORT=$((5900 + BASH_REMATCH[1]))
+    fi
+    if ss -H -t -n sport = :$PORT 2>/dev/null | grep -q 'ESTAB'; then
         /opt/jar-manager/scripts/mode-active.sh "$ACC"
     else
         /opt/jar-manager/scripts/mode-idle.sh "$ACC"

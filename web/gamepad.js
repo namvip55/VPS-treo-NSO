@@ -91,7 +91,6 @@ class MobileGameController {
       }
     });
   }
-  }
 
   bindPinEvents() {
     if (!this.pinOverlay) return;

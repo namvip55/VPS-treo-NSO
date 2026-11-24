@@ -34,6 +34,7 @@ namespace JarManagerAdmin
         public string Key { get; set; }
         public string Game { get; set; }
         public string GameTitle { get; set; }
+        public string WebUrl { get; set; }
         public bool IsOnline { get; set; }
         public int PingMs { get; set; }
     }
@@ -497,6 +498,7 @@ namespace JarManagerAdmin
                             Key = s.ContainsKey("key") ? s["key"].ToString() : "~/.ssh/id_ed25519_jar",
                             Game = s.ContainsKey("game") ? s["game"].ToString() : "game.jar",
                             GameTitle = s.ContainsKey("game_title") ? s["game_title"].ToString() : "NSO",
+                            WebUrl = s.ContainsKey("web_url") ? s["web_url"].ToString() : (s.ContainsKey("ngrok_domain") ? "https://" + s["ngrok_domain"].ToString() : "https://mistily-stipular-kristopher.ngrok-free.dev"),
                             IsOnline = false,
                             PingMs = 0
                         };
@@ -705,6 +707,13 @@ namespace JarManagerAdmin
             catch { }
         }
 
+        private string ResolveSshExe()
+        {
+            string winSsh = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "OpenSSH", "ssh.exe");
+            if (File.Exists(winSsh)) return winSsh;
+            return "ssh.exe";
+        }
+
         private string ExecuteSsh(VpsInfo vps, string cmd)
         {
             try
@@ -715,7 +724,7 @@ namespace JarManagerAdmin
 
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
-                    FileName = "ssh.exe",
+                    FileName = ResolveSshExe(),
                     Arguments = sshArgs,
                     WindowStyle = ProcessWindowStyle.Hidden,
                     CreateNoWindow = true,
@@ -771,7 +780,7 @@ namespace JarManagerAdmin
 
                     ProcessStartInfo psiTunnel = new ProcessStartInfo
                     {
-                        FileName = "ssh.exe",
+                        FileName = ResolveSshExe(),
                         Arguments = sshArgs,
                         WindowStyle = ProcessWindowStyle.Hidden,
                         CreateNoWindow = true,
@@ -835,6 +844,12 @@ namespace JarManagerAdmin
             if (currentVps == null || lvwSlots.SelectedItems.Count == 0) return;
             int slotId = Convert.ToInt32(lvwSlots.SelectedItems[0].Tag);
 
+            if (slotId == 1)
+            {
+                var warn1 = MessageBox.Show("CẢNH BÁO: Slot 1 là slot game chính (mặc định) của VPS.\nBạn có chắc chắn muốn xóa không?", "Cảnh báo Slot gốc", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (warn1 != DialogResult.Yes) return;
+            }
+
             var confirm = MessageBox.Show(string.Format("Bạn có chắc muốn XÓA HOÀN TOÀN Slot {0}?\nKhách cũ sẽ bị thu hồi mã PIN và dữ liệu RMS sẽ bị xóa sạch!", slotId),
                 "Xác nhận xóa slot khách", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
 
@@ -877,7 +892,7 @@ namespace JarManagerAdmin
                 {
                     int sid;
                     if (!int.TryParse(txtSlot.Text.Trim(), out sid)) { MessageBox.Show("Số slot không hợp lệ!"); return; }
-                    string gName = txtGame.Text.Trim();
+                    string gName = txtGame.Text.Trim().Replace("'", "").Replace("\"", "");
                     string pin = txtPin.Text.Trim();
 
                     f.DialogResult = DialogResult.OK;
@@ -902,11 +917,14 @@ namespace JarManagerAdmin
         private void CopyIphoneLink()
         {
             if (currentVps == null) return;
-            string link = "https://mistily-stipular-kristopher.ngrok-free.dev";
+            string link = !string.IsNullOrEmpty(currentVps.WebUrl) ? currentVps.WebUrl : "https://mistily-stipular-kristopher.ngrok-free.dev";
             if (lvwSlots.SelectedItems.Count > 0)
             {
                 string pin = lvwSlots.SelectedItems[0].SubItems[3].Text;
-                link += "/?pin=" + pin;
+                if (!string.IsNullOrEmpty(pin) && pin != "N/A")
+                {
+                    link = link.TrimEnd('/') + "/?pin=" + pin;
+                }
             }
             Clipboard.SetText(link);
             MessageBox.Show("Đã copy link Safari cho iPhone vào Clipboard:\n" + link, "Copy thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
