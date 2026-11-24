@@ -11,6 +11,8 @@
       "key": "~/.ssh/id_ed25519_jar",
       "game": "nepsilon.jar",
       "game_title": "NSO GEMINI",
+      "web_url": "https://mistily-stipular-kristopher.ngrok-free.dev",
+      "default_pin": "1234",
       "accounts": [
         "acc1"
       ],
@@ -26,6 +28,8 @@
       "key": "~/.ssh/id_ed25519_jar",
       "game": "HoiUc220.jar",
       "game_title": "Hoi Uc NSO",
+      "web_url": "https://vps2-sample.ngrok-free.dev",
+      "default_pin": "8888",
       "accounts": [
         "acc1"
       ],

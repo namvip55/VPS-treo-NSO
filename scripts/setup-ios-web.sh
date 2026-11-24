@@ -90,12 +90,32 @@ if [ -d "$PROJECT_WEB_DIR" ]; then
   cp -f "$PROJECT_WEB_DIR"/* "$SRC_WEB_DIR/" 2>/dev/null || true
 fi
 
-# Thiết lập file config.js với mã PIN riêng biệt cho VPS khách này
+# Đảm bảo /opt/jar-manager/slots.json có thông tin Slot 1 (Game gốc)
+python3 -c "
+import json, os
+SLOT_FILE = '/opt/jar-manager/slots.json'
+try:
+    with open(SLOT_FILE, 'r') as f: data = json.load(f)
+except Exception: data = {}
+data['1'] = {
+    'slot': 1,
+    'acc': 'acc1',
+    'game': '${GAME_TITLE}',
+    'jar': '/opt/jar-manager/games/game.jar',
+    'pin': '${CLIENT_PIN}',
+    'port': 5901
+}
+with open(SLOT_FILE, 'w') as f: json.dump(data, f, indent=2)
+"
+
+# Thiết lập file config.js với mã PIN và danh bạ slot cho VPS này
 cat << EOF > "$SRC_WEB_DIR/config.js"
+window.SLOTS = {
+  "${CLIENT_PIN}": { acc: "acc1", game: "${GAME_TITLE}", slot: 1, port: 5901 }
+};
 window.CONFIG = {
   title: "${GAME_TITLE}",
-  account: "acc1",
-  pin: "${CLIENT_PIN}"
+  default_pin: "${CLIENT_PIN}"
 };
 EOF
 

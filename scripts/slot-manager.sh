@@ -13,10 +13,26 @@ WEB_CONFIG="/opt/jar-manager/web/config.js"
 
 mkdir -p /opt/jar-manager/profiles /opt/jar-manager/web
 
-# Đảm bảo file slots.json tồn tại
-if [ ! -f "$SLOT_FILE" ]; then
-    echo "{}" > "$SLOT_FILE"
-fi
+# Đảm bảo file slots.json tồn tại và có Slot 1 nếu có game.jar
+python3 -c "
+import json, os
+SLOT_FILE = '$SLOT_FILE'
+TOKENS_CFG = '$TOKENS_CFG'
+try:
+    with open(SLOT_FILE, 'r') as f: data = json.load(f)
+except Exception: data = {}
+
+if '1' not in data and os.path.exists('/opt/jar-manager/games/game.jar'):
+    data['1'] = {
+        'slot': 1,
+        'acc': 'acc1',
+        'game': 'Game Goc',
+        'jar': '/opt/jar-manager/games/game.jar',
+        'pin': '1234',
+        'port': 5901
+    }
+    with open(SLOT_FILE, 'w') as f: json.dump(data, f, indent=2)
+" 2>/dev/null || true
 
 case "$ACTION" in
     add)
@@ -53,6 +69,7 @@ case "$ACTION" in
         echo "=== [3/4] CAP NHAT ROUTING NGROK TOKENS (MA PIN -> PORT ${VNC_PORT}) ==="
         # Xoa token cu neu co va them token moi
         touch "$TOKENS_CFG"
+        sed -i "/: 127\.0\.0\.1:${VNC_PORT}$/d" "$TOKENS_CFG" 2>/dev/null || true
         sed -i "/^${PIN}:/d" "$TOKENS_CFG" 2>/dev/null || true
         echo "${PIN}: 127.0.0.1:${VNC_PORT}" >> "$TOKENS_CFG"
 
@@ -172,6 +189,7 @@ except: print('')
 ")
         if [ -n "$PIN" ]; then
             sed -i "/^${PIN}:/d" "$TOKENS_CFG" 2>/dev/null || true
+            sed -i "/: 127\.0\.0\.1:$((5900 + SLOT_ID))$/d" "$TOKENS_CFG" 2>/dev/null || true
             echo "--> Da thu hoi ma PIN: ${PIN}"
         fi
 

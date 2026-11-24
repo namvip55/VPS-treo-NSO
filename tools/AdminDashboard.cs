@@ -35,6 +35,7 @@ namespace JarManagerAdmin
         public string Game { get; set; }
         public string GameTitle { get; set; }
         public string WebUrl { get; set; }
+        public string DefaultPin { get; set; }
         public bool IsOnline { get; set; }
         public int PingMs { get; set; }
     }
@@ -499,6 +500,7 @@ namespace JarManagerAdmin
                             Game = s.ContainsKey("game") ? s["game"].ToString() : "game.jar",
                             GameTitle = s.ContainsKey("game_title") ? s["game_title"].ToString() : "NSO",
                             WebUrl = s.ContainsKey("web_url") ? s["web_url"].ToString() : (s.ContainsKey("ngrok_domain") ? "https://" + s["ngrok_domain"].ToString() : "https://mistily-stipular-kristopher.ngrok-free.dev"),
+                            DefaultPin = s.ContainsKey("default_pin") ? s["default_pin"].ToString() : "1234",
                             IsOnline = false,
                             PingMs = 0
                         };
@@ -695,7 +697,7 @@ namespace JarManagerAdmin
                         ListViewItem lvi = new ListViewItem("Slot 1 (Gốc)");
                         lvi.SubItems.Add(currentVps.GameTitle);
                         lvi.SubItems.Add("acc1");
-                        lvi.SubItems.Add("1234");
+                        lvi.SubItems.Add(currentVps.DefaultPin ?? "1234");
                         lvi.SubItems.Add("5901");
                         lvi.SubItems.Add(isDefRunning ? "✔ Đang cày 24/7" : "■ Đã dừng");
                         lvi.Tag = 1;
@@ -925,6 +927,10 @@ namespace JarManagerAdmin
                 {
                     link = link.TrimEnd('/') + "/?pin=" + pin;
                 }
+            }
+            else if (!string.IsNullOrEmpty(currentVps.DefaultPin))
+            {
+                link = link.TrimEnd('/') + "/?pin=" + currentVps.DefaultPin;
             }
             Clipboard.SetText(link);
             MessageBox.Show("Đã copy link Safari cho iPhone vào Clipboard:\n" + link, "Copy thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);

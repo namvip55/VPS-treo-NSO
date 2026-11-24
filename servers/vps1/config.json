@@ -8,6 +8,8 @@
   "key": "~/.ssh/id_ed25519_jar",
   "game": "nepsilon.jar",
   "game_title": "NSO GEMINI",
+  "web_url": "https://mistily-stipular-kristopher.ngrok-free.dev",
+  "default_pin": "1234",
   "accounts": [
     "acc1"
   ],

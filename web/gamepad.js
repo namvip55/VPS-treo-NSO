@@ -146,7 +146,7 @@ class MobileGameController {
       matchedSlot = window.SLOTS[pin];
     }
 
-    if (matchedSlot || pin === String(expectedPin) || pin === '1234' || pin === '8888' || pin === '6868') {
+    if (matchedSlot || (expectedPin && pin === String(expectedPin))) {
       if (this.chkRememberPin && this.chkRememberPin.checked) {
         localStorage.setItem('nso_client_pin', pin);
       }

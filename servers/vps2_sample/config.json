@@ -8,6 +8,8 @@
   "key": "~/.ssh/id_ed25519_jar",
   "game": "HoiUc220.jar",
   "game_title": "Hoi Uc NSO",
+  "web_url": "https://vps2-sample.ngrok-free.dev",
+  "default_pin": "8888",
   "accounts": [
     "acc1"
   ],
