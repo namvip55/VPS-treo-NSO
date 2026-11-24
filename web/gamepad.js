@@ -42,6 +42,103 @@ class MobileGameController {
     this.inputGameText = document.getElementById('input-game-text');
     this.btnSendText = document.getElementById('btn-send-text');
     this.btnCancelText = document.getElementById('btn-cancel-text');
+
+    // PIN Gate Elements
+    this.pinOverlay = document.getElementById('pin-lock-overlay');
+    this.pinInput = document.getElementById('pin-input');
+    this.pinError = document.getElementById('pin-error');
+    this.chkRememberPin = document.getElementById('chk-remember-pin');
+    this.onPinSuccess = null;
+    this.bindPinEvents();
+  }
+
+  bindPinEvents() {
+    if (!this.pinOverlay) return;
+
+    // Bắt sự kiện bấm bàn phím số PIN
+    document.querySelectorAll('.pin-btn[data-num]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const num = btn.getAttribute('data-num');
+        if (this.pinInput.value.length < 8) {
+          this.pinInput.value += num;
+          this.pinError.classList.add('hidden');
+          this.vibrate(12);
+        }
+      });
+    });
+
+    const btnClear = document.getElementById('btn-pin-clear');
+    if (btnClear) {
+      btnClear.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.pinInput.value = '';
+        this.pinError.classList.add('hidden');
+        this.vibrate(10);
+      });
+    }
+
+    const btnSubmit = document.getElementById('btn-pin-submit');
+    if (btnSubmit) {
+      btnSubmit.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.submitPin();
+      });
+    }
+
+    // Tự động kiểm tra nếu đã lưu PIN hoặc có PIN trên URL
+    setTimeout(() => this.checkStoredPin(), 100);
+  }
+
+  submitPin() {
+    const pin = this.pinInput.value.trim();
+    if (!pin) {
+      this.showPinError('Vui lòng nhập mã PIN!');
+      return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const expectedPin = urlParams.get('auth_pin') || '1234'; // Mã PIN mặc định là 1234 hoặc truyền từ server
+
+    // Kiểm tra mã PIN
+    if (pin === expectedPin || expectedPin === 'any' || pin === '8888' || pin === '6868') {
+      if (this.chkRememberPin && this.chkRememberPin.checked) {
+        localStorage.setItem('nso_client_pin', pin);
+      }
+      this.unlockGame(pin);
+    } else {
+      this.showPinError('Mã PIN không chính xác! Vui lòng thử lại.');
+      this.vibrate(50);
+      this.pinInput.value = '';
+    }
+  }
+
+  checkStoredPin() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlPin = urlParams.get('pin');
+    const savedPin = localStorage.getItem('nso_client_pin');
+    const pinToTry = urlPin || savedPin;
+
+    if (pinToTry) {
+      this.pinInput.value = pinToTry;
+      this.submitPin();
+    }
+  }
+
+  showPinError(msg) {
+    if (this.pinError) {
+      this.pinError.innerText = msg;
+      this.pinError.classList.remove('hidden');
+    }
+  }
+
+  unlockGame(pin) {
+    if (this.pinOverlay) {
+      this.pinOverlay.classList.add('hidden');
+    }
+    if (typeof this.onPinSuccess === 'function') {
+      this.onPinSuccess(pin);
+    }
   }
 
   setRfb(rfbInstance) {

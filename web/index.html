@@ -38,6 +38,40 @@
       <div id="msg-overlay" class="hidden">Đang tải màn hình...</div>
     </main>
 
+    <!-- MÀN HÌNH KHÓA MÃ PIN BẢO MẬT (CHỐNG NGƯỜI LẠ TRUY CẬP) -->
+    <div id="pin-lock-overlay">
+      <div class="pin-card">
+        <div class="pin-icon">🔐</div>
+        <h2>XÁC THỰC BẢO MẬT</h2>
+        <p class="pin-sub">Nhập mã PIN do Admin cấp để vào đúng màn hình game của bạn</p>
+        
+        <div class="pin-display">
+          <input type="password" id="pin-input" maxlength="8" placeholder="••••" readonly>
+        </div>
+        <div id="pin-error" class="pin-error hidden">Mã PIN không đúng! Vui lòng thử lại.</div>
+
+        <!-- Bàn phím số PIN cảm ứng cho iPhone -->
+        <div class="pin-pad">
+          <button class="pin-btn" data-num="1">1</button>
+          <button class="pin-btn" data-num="2">2</button>
+          <button class="pin-btn" data-num="3">3</button>
+          <button class="pin-btn" data-num="4">4</button>
+          <button class="pin-btn" data-num="5">5</button>
+          <button class="pin-btn" data-num="6">6</button>
+          <button class="pin-btn" data-num="7">7</button>
+          <button class="pin-btn" data-num="8">8</button>
+          <button class="pin-btn" data-num="9">9</button>
+          <button class="pin-btn pin-func" id="btn-pin-clear">XÓA</button>
+          <button class="pin-btn" data-num="0">0</button>
+          <button class="pin-btn pin-confirm" id="btn-pin-submit">VÀO</button>
+        </div>
+
+        <div class="pin-remember">
+          <label><input type="checkbox" id="chk-remember-pin" checked> Ghi nhớ trên iPhone này</label>
+        </div>
+      </div>
+    </div>
+
     <!-- Bàn phím ảo cảm ứng (Virtual Touch Gamepad) -->
     <div id="gamepad-overlay">
       <!-- Cụm điều khiển ở nửa dưới màn hình để thuận tiện 2 ngón tay cái -->
@@ -129,33 +163,40 @@
   <!-- Nạp controller bàn phím cảm ứng -->
   <script src="gamepad.js"></script>
 
-  <!-- Nạp module noVNC kết nối WebSocket -->
+  <!-- Nạp module noVNC kết nối WebSocket khi đã xác thực mã PIN -->
   <script type="module">
     import RFB from './core/rfb.js';
 
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const host = urlParams.get('host') || window.location.hostname;
-      const port = urlParams.get('port') || window.location.port || (window.location.protocol === 'https:' ? 443 : 80);
-      const path = urlParams.get('path') || 'websockify';
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const vncUrl = `${protocol}://${host}:${port}/${path}`;
+    function initRfbConnection(pin) {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const host = urlParams.get('host') || window.location.hostname;
+        const port = urlParams.get('port') || window.location.port || (window.location.protocol === 'https:' ? 443 : 80);
+        const path = urlParams.get('path') || 'websockify';
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const vncUrl = `${protocol}://${host}:${port}/${path}`;
 
-      const screen = document.getElementById('vnc-screen');
-      const rfb = new RFB(screen, vncUrl, {
-        credentials: { password: urlParams.get('password') || '' }
-      });
+        const screen = document.getElementById('vnc-screen');
+        const rfb = new RFB(screen, vncUrl, {
+          credentials: { password: pin || urlParams.get('password') || '' }
+        });
 
-      rfb.scaleViewport = true;
-      rfb.resizeSession = false;
-      rfb.clipViewport = false;
-      rfb.focusOnClick = true;
+        rfb.scaleViewport = true;
+        rfb.resizeSession = false;
+        rfb.clipViewport = false;
+        rfb.focusOnClick = true;
 
-      window.controller.setRfb(rfb);
-    } catch (err) {
-      console.warn('Luu y: Core noVNC chua duoc copy vao thu muc web. Khi deploy tren VPS se duoc tu dong copy tu /usr/share/novnc.');
-      window.controller.updateStatus('CHỜ DEPLOY VPS', '#f59e0b');
+        window.controller.setRfb(rfb);
+      } catch (err) {
+        console.warn('Luu y: Core noVNC chua duoc copy vao thu muc web. Khi deploy tren VPS se duoc tu dong copy tu /usr/share/novnc.');
+        window.controller.updateStatus('CHỜ DEPLOY VPS', '#f59e0b');
+      }
     }
+
+    // Chỉ kết nối khi người dùng đã nhập đúng mã PIN bảo mật
+    window.controller.onPinSuccess = function(pin) {
+      initRfbConnection(pin);
+    };
   </script>
 </body>
 </html>
