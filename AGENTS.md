@@ -5,20 +5,17 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
 
 ---
 
-## 📌 1. BẢNG THÔNG TIN HỆ THỐNG VPS HIỆN TẠI
+## 📌 1. BẢNG KHUNG MẪU THÔNG SỐ VPS (SPEC BLUEPRINT)
 
-* **Nhà cung cấp VPS:** `vps1k.net`
-* **Hệ điều hành:** Ubuntu 22.04 LTS x86_64 (Minimal)
-* **Cấu hình phần cứng:** 1 vCPU, 2048 MB RAM, 15 GB NVMe (SCSI), 2 GB Swap (`/swapfile`), Tổng Swap ~3.8 GB
-* **Băng thông:** 40 Mbps (5 MB/s)
-* **Hostname:** `node-h3og603c`
+👉 **Tài liệu chuẩn khai báo & thông số mẫu chi tiết:** [VPS_SPEC_TEMPLATE.md](VPS_SPEC_TEMPLATE.md)
+
+* **Cơ chế quản lý:** Mỗi VPS có thông số riêng biệt trong danh bạ `vps_registry.json` và phân vùng `servers/<name-vps>/config.json`.
+* **Cơ chế truy cập Web Mobile:** Mỗi tab game (Slot 1, Slot 2, Slot 3...) sở hữu 1 **KEY / MÃ PIN riêng biệt** để truy cập độc lập trên Safari/Chrome (`https://<web_url>/?pin=<PIN>`).
+* **Hệ điều hành chuẩn:** Ubuntu 22.04 LTS x86_64 (Minimal)
+* **Cấu hình tối thiểu:** 1 vCPU, 1024 - 2048 MB RAM, 15 GB NVMe, 2 GB Swap (`/swapfile`)
 * **Loại mạng:** IP NAT (Việt Nam)
-* **Host Remote:** `14.250.250.229` (IPv4 trực tiếp, TUYỆT ĐỐI không dùng `remote.io.vn` do Round-Robin DNS)
-* **Port NAT (SSH & Game):** `12724` (ánh xạ qua bộ ghép kênh sslh trên cổng 3389 vào SSH 22 & Game 12724)
-* **User quản trị:** `root` | **Mật khẩu:** `<ROOT_PASSWORD>` *(Xác thực qua SSH Key cá nhân)*
-* **SSH Key quản trị:** `C:\Users\Admin\.ssh\id_ed25519_jar` (Ed25519) | Alias: `vps-jar` trong `~/.ssh/config`
-* **Tên miền máy chủ:** `nguyenthanhnam376.id.vn`
-* **Game JAR:** `nepsilon.jar` (Symlink: `game.jar -> nepsilon.jar`)
+* **Host Remote:** IPv4 trực tiếp (TUYỆT ĐỐI không dùng `remote.io.vn` do Round-Robin DNS)
+* **User quản trị:** `root` | Xác thực qua SSH Key cá nhân (`~/.ssh/id_ed25519_jar`)
 
 ---
 
