@@ -23,9 +23,10 @@
         <span id="status-text">ĐANG KẾT NỐI...</span>
       </div>
 
-      <div class="title-text">NSO CLOUD 24/7</div>
+      <div class="title-text" id="game-title-display">JAVA CLOUD 24/7</div>
 
       <div class="bar-actions">
+        <button class="bar-btn" id="btn-mode-toggle" title="Đổi kiểu hiển thị phím: Mọi game / NSO">⚡ Phím Số</button>
         <button class="bar-btn" id="btn-text-dialog" title="Nhập chữ/số vào game">💬 Chat</button>
         <button class="bar-btn" id="btn-toggle-pad" title="Ẩn/Hiện bàn phím ảo">🎮 Ẩn Nút</button>
         <button class="bar-btn" id="btn-fullscreen" title="Toàn màn hình">⛶</button>
@@ -181,13 +182,17 @@
 
         const screen = document.getElementById('vnc-screen');
         const rfb = new RFB(screen, vncUrl, {
-          credentials: { password: pin || urlParams.get('password') || '' }
+          credentials: { password: pin || urlParams.get('password') || '' },
+          wsProtocols: ['binary']
         });
 
+        // TỐI ƯU HÓA ĐỘ TRỄ CỰC THẤP (ZERO-LAG 60 FPS CHO MOBILE)
         rfb.scaleViewport = true;
         rfb.resizeSession = false;
         rfb.clipViewport = false;
         rfb.focusOnClick = true;
+        rfb.compressionLevel = 1; // Mức nén 1: Giải nén siêu tốc, CPU điện thoại chạy mát mẻ
+        rfb.qualityLevel = 7;      // Sắc nét từng pixel đồ họa 2D Java
 
         window.controller.setRfb(rfb);
       } catch (err) {

@@ -9,6 +9,7 @@ set -e
 NGROK_TOKEN="${NGROK_TOKEN:-${NGROK_AUTHTOKEN:-}}"
 NGROK_DOMAIN="${NGROK_DOMAIN:-}"
 CLIENT_PIN="${CLIENT_PIN:-1234}"
+GAME_TITLE="${GAME_TITLE:-JAVA GAME}"
 SRC_WEB_DIR="/opt/jar-manager/web"
 PROJECT_WEB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../web" && pwd)"
 
@@ -42,9 +43,13 @@ while [[ $# -gt 0 ]]; do
       CLIENT_PIN="$2"
       shift 2
       ;;
+    --title)
+      GAME_TITLE="$2"
+      shift 2
+      ;;
     *)
       echo "Tham so khong hop le: $1"
-      echo "Cach dung: $0 [--token <TOKEN>] [--domain <DOMAIN>] [--pin <MÃ_PIN>]"
+      echo "Cach dung: $0 [--token <TOKEN>] [--domain <DOMAIN>] [--pin <MÃ_PIN>] [--title <TÊN_GAME>]"
       exit 1
       ;;
   esac
@@ -88,7 +93,7 @@ fi
 # Thiết lập file config.js với mã PIN riêng biệt cho VPS khách này
 cat << EOF > "$SRC_WEB_DIR/config.js"
 window.CONFIG = {
-  title: "NSO GEMINI 24/7",
+  title: "${GAME_TITLE}",
   account: "acc1",
   pin: "${CLIENT_PIN}"
 };

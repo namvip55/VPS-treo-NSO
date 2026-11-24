@@ -38,6 +38,9 @@ class MobileGameController {
     this.btnTogglePad = document.getElementById('btn-toggle-pad');
     this.btnFullscreen = document.getElementById('btn-fullscreen');
     this.btnTextDialog = document.getElementById('btn-text-dialog');
+    this.btnModeToggle = document.getElementById('btn-mode-toggle');
+    this.gameTitleDisplay = document.getElementById('game-title-display');
+    this.padMode = localStorage.getItem('nso_pad_mode') || 'universal'; // 'universal' hoặc 'nso'
     this.textDialog = document.getElementById('text-input-dialog');
     this.inputGameText = document.getElementById('input-game-text');
     this.btnSendText = document.getElementById('btn-send-text');
@@ -50,6 +53,44 @@ class MobileGameController {
     this.chkRememberPin = document.getElementById('chk-remember-pin');
     this.onPinSuccess = null;
     this.bindPinEvents();
+    this.setupDynamicGameTitle();
+    this.applyPadMode();
+  }
+
+  setupDynamicGameTitle() {
+    if (!this.gameTitleDisplay) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const title = urlParams.get('title') || (window.CONFIG && window.CONFIG.title) || 'JAVA GAME';
+    this.gameTitleDisplay.innerText = title.toUpperCase() + ' 24/7';
+    document.title = title + ' - Cloud Gaming Mobile';
+  }
+
+  applyPadMode() {
+    const isUniversal = this.padMode === 'universal';
+    if (this.btnModeToggle) {
+      this.btnModeToggle.innerText = isUniversal ? '⚡ Phím Số' : '🗡 Chiêu Thức';
+    }
+
+    const labels = {
+      'UP': isUniversal ? '8' : '8 (Nhảy)',
+      'DOWN': isUniversal ? '2' : '2 (Cúi)',
+      'LEFT': isUniversal ? '4' : '4 (Trái)',
+      'RIGHT': isUniversal ? '6' : '6 (Phải)',
+      'KEY_5': isUniversal ? '5 OK' : 'ĐÁNH',
+      'KEY_7': isUniversal ? '7' : 'Skill 1',
+      'KEY_9': isUniversal ? '9' : 'Skill 3',
+      'KEY_1': isUniversal ? '1' : 'Skill 7',
+      'KEY_3': isUniversal ? '3' : 'Skill 9'
+    };
+
+    document.querySelectorAll('.gpad-btn').forEach(btn => {
+      const key = btn.getAttribute('data-key');
+      const subLabel = btn.querySelector('.btn-label-sub');
+      if (subLabel && labels[key]) {
+        subLabel.innerText = labels[key];
+      }
+    });
+  }
   }
 
   bindPinEvents() {
@@ -263,6 +304,16 @@ class MobileGameController {
         } else {
           document.exitFullscreen().catch(() => {});
         }
+      });
+    }
+
+    // Đổi kiểu hiển thị bàn phím (Phím số chung / Chiêu thức NSO)
+    if (this.btnModeToggle) {
+      this.btnModeToggle.addEventListener('click', () => {
+        this.padMode = this.padMode === 'universal' ? 'nso' : 'universal';
+        localStorage.setItem('nso_pad_mode', this.padMode);
+        this.applyPadMode();
+        this.showMessage(this.padMode === 'universal' ? 'Đã đổi: Phím Số Cổ Điển' : 'Đã đổi: Phím Chiêu Thức', 1200);
       });
     }
 

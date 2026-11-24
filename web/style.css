@@ -133,6 +133,14 @@ html, body {
   max-height: 100%;
   object-fit: contain;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+  /* TĂNG TỐC PHẦN CỨNG GPU TRÊN IPHONE & CHỐNG NHÒE PIXEL ART */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 /* --- OVERLAY NOTIFICATIONS --- */
@@ -193,6 +201,7 @@ html, body {
   -webkit-user-select: none;
   background: rgba(30, 41, 59, 0.65);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1.5px solid rgba(255, 255, 255, 0.22);
   color: #ffffff;
   border-radius: 50%;
@@ -202,16 +211,22 @@ html, body {
   justify-content: center;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.25);
-  transition: transform 0.08s ease, background-color 0.08s ease, border-color 0.08s ease;
+  transition: transform 0.06s ease, background-color 0.06s ease;
   touch-action: none;
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .gpad-btn:active, .gpad-btn.pressed {
-  background: rgba(34, 197, 94, 0.7) !important;
+  background: rgba(34, 197, 94, 0.75) !important;
   border-color: #4ade80 !important;
   color: #ffffff !important;
-  transform: scale(0.88);
+  transform: scale(0.9) translateZ(0);
+  -webkit-transform: scale(0.9) translateZ(0);
   box-shadow: 0 0 15px rgba(34, 197, 94, 0.8), inset 0 0 8px rgba(255, 255, 255, 0.4);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .btn-label-sub {
