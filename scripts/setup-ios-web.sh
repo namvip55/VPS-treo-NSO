@@ -8,6 +8,7 @@ set -e
 
 NGROK_TOKEN="${NGROK_TOKEN:-${NGROK_AUTHTOKEN:-}}"
 NGROK_DOMAIN="${NGROK_DOMAIN:-}"
+CLIENT_PIN="${CLIENT_PIN:-1234}"
 SRC_WEB_DIR="/opt/jar-manager/web"
 PROJECT_WEB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../web" && pwd)"
 
@@ -17,11 +18,13 @@ if [ -f "/opt/jar-manager/.env" ]; then
   source "/opt/jar-manager/.env"
   NGROK_TOKEN="${NGROK_TOKEN:-${NGROK_AUTHTOKEN:-}}"
   NGROK_DOMAIN="${NGROK_DOMAIN:-}"
+  CLIENT_PIN="${CLIENT_PIN:-${PIN:-1234}}"
 elif [ -f "$(dirname "${BASH_SOURCE[0]}")/../.env" ]; then
   # shellcheck disable=SC1091
   source "$(dirname "${BASH_SOURCE[0]}")/../.env"
   NGROK_TOKEN="${NGROK_TOKEN:-${NGROK_AUTHTOKEN:-}}"
   NGROK_DOMAIN="${NGROK_DOMAIN:-}"
+  CLIENT_PIN="${CLIENT_PIN:-${PIN:-1234}}"
 fi
 
 # Đọc tham số dòng lệnh
@@ -35,9 +38,13 @@ while [[ $# -gt 0 ]]; do
       NGROK_DOMAIN="$2"
       shift 2
       ;;
+    --pin)
+      CLIENT_PIN="$2"
+      shift 2
+      ;;
     *)
       echo "Tham so khong hop le: $1"
-      echo "Cach dung: $0 [--token <TOKEN>] [--domain <DOMAIN>]"
+      echo "Cach dung: $0 [--token <TOKEN>] [--domain <DOMAIN>] [--pin <MÃ_PIN>]"
       exit 1
       ;;
   esac
@@ -77,6 +84,15 @@ fi
 if [ -d "$PROJECT_WEB_DIR" ]; then
   cp -f "$PROJECT_WEB_DIR"/* "$SRC_WEB_DIR/" 2>/dev/null || true
 fi
+
+# Thiết lập file config.js với mã PIN riêng biệt cho VPS khách này
+cat << EOF > "$SRC_WEB_DIR/config.js"
+window.CONFIG = {
+  title: "NSO GEMINI 24/7",
+  account: "acc1",
+  pin: "${CLIENT_PIN}"
+};
+EOF
 
 # 3. Tạo dịch vụ systemd cho noVNC / websockify (Port 6080 -> VNC Display :1 Port 5901)
 echo "[3/5] Cau hinh dich vu novnc.service (Websockify)..."
@@ -132,8 +148,9 @@ EOF
   systemctl enable --now ngrok.service
 
   echo "=================================================================="
-  echo "✔ CÀI ĐẶT THÀNH CÔNG NHÁNH IPHONE VỚI LINK CỐ ĐỊNH 100%!"
+  echo "✔ CÀI ĐẶT THÀNH CÔNG NHÁNH IPHONE (MÔ HÌNH 1 VPS : 1 KHÁCH)!"
   echo "👉 ĐƯỜNG LINK TRUY CẬP CHO IPHONE: https://${NGROK_DOMAIN}"
+  echo "👉 MÃ PIN BẢO MẬT GIAO CHO KHÁCH:  ${CLIENT_PIN}"
   echo "👉 KHÁCH MỞ SAFARI -> BẤM 'CHIA SẺ' -> CHỌN 'THÊM VÀO MH CHÍNH'"
   echo "=================================================================="
 else

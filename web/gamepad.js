@@ -98,10 +98,10 @@ class MobileGameController {
     }
 
     const urlParams = new URLSearchParams(window.location.search);
-    const expectedPin = urlParams.get('auth_pin') || '1234'; // Mã PIN mặc định là 1234 hoặc truyền từ server
+    const expectedPin = urlParams.get('auth_pin') || (window.CONFIG && window.CONFIG.pin) || '1234';
 
-    // Kiểm tra mã PIN
-    if (pin === expectedPin || expectedPin === 'any' || pin === '8888' || pin === '6868') {
+    // Kiểm tra mã PIN của VPS khách hàng
+    if (pin === String(expectedPin)) {
       if (this.chkRememberPin && this.chkRememberPin.checked) {
         localStorage.setItem('nso_client_pin', pin);
       }
