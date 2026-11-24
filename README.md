@@ -51,9 +51,16 @@ Vps-Treo-Nso/
 │   ├── OPERATIONS.md              # Sổ tay vận hành & quản lý tập lệnh
 │   ├── SETUP_FORM.md              # Khung mẫu setup chuẩn
 │   └── README.md                  # Tài liệu tổng quan
+├── web/                           # GIAO DIỆN WEB MOBILE CHO IPHONE / IPAD
+│   ├── index.html                 # Giao diện noVNC responsive chuẩn PWA
+│   ├── style.css                  # Theme Glassmorphism tối ưu cảm ứng GPU
+│   ├── gamepad.js                 # Bàn phím ảo cảm ứng đa năng (Mọi game Java)
+│   ├── config.js                  # Cấu hình PIN và tên game động
+│   └── manifest.json              # Hỗ trợ Add to Home Screen toàn màn hình
 ├── scripts/                       # TẬP LỆNH SHELL TRÊN VPS
 │   ├── start-acc.sh               # Khởi chạy tài khoản (tự động nhận diện RAM & bypass Start)
 │   ├── stop-acc.sh                # Tắt tài khoản an toàn
+│   ├── setup-ios-web.sh           # Cài đặt tự động Web noVNC + Ngrok Static Tunnel
 │   ├── mode-active.sh             # Nâng ưu tiên CPU (renice 0) khi xem game
 │   ├── mode-idle.sh               # Hạ ưu tiên CPU (renice 15) khi treo ngầm
 │   ├── auto-power-save.sh         # Tự động chuyển mode theo kết nối VNC
@@ -61,6 +68,7 @@ Vps-Treo-Nso/
 │   ├── focus-acc.sh               # Phóng to và đưa cửa sổ acc lên đầu
 │   ├── status-all.sh              # Kiểm tra trạng thái toàn bộ acc
 │   └── system-info.sh             # Kiểm tra RAM, Swap, CPU tải
+├── .env.example                   # Mẫu cấu hình bảo mật không lộ token
 ├── vps_registry.json              # DANH BẠ QUẢN LÝ TẬP TRUNG MULTI-VPS
 ├── AGENTS.md                      # Kiến thức chuẩn & quy tắc sống còn cho Agent
 └── README.md                      # Giới thiệu dự án
@@ -70,7 +78,7 @@ Vps-Treo-Nso/
 
 ## 🚀 3. Hướng Dẫn Sử Dụng Nhanh
 
-### 3.1. Đóng gói app 1-click giao cho khách hàng
+### 3.1. Nhánh 1: Bàn giao cho khách dùng Máy tính Windows (File EXE 1-Click)
 ```bash
 # Tạo file EXE độc lập kèm đẩy public key an toàn lên VPS:
 python tools/package_client.py --host 14.250.250.229 --port 12724 --title "NSO GEMINI" --acc acc1 --push-pubkey
@@ -79,7 +87,22 @@ python tools/package_client.py --host 14.250.250.229 --port 12724 --title "NSO G
 # Khách chỉ cần tải file về máy, nhấp đúp là vào thẳng game!
 ```
 
-### 3.2. Quản lý Multi-VPS qua `vps_manager.py`
+### 3.2. Nhánh 2: Bàn giao cho khách dùng iPhone / iPad (Web Mobile PWA)
+```bash
+# Chạy lệnh setup web & tunnel với mã PIN bảo mật riêng:
+bash /opt/jar-manager/scripts/setup-ios-web.sh \
+  --token <NGROK_AUTHTOKEN> \
+  --domain mistily-stipular-kristopher.ngrok-free.dev \
+  --pin 8888 \
+  --title "TÊN GAME CỦA BẠN"
+
+# Gửi cho khách:
+# 1. Link: https://mistily-stipular-kristopher.ngrok-free.dev
+# 2. Mã PIN: 8888
+# Khách mở Safari -> Nhập PIN -> Bấm 'Chia sẻ' -> 'Thêm vào MH chính' là xong!
+```
+
+### 3.3. Quản lý Multi-VPS qua `vps_manager.py`
 ```bash
 # Xem danh sách VPS
 python tools/vps_manager.py list

@@ -117,11 +117,13 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
   * Mở VNC Viewer với cờ tối ưu:
     `localhost:<port> -PreferredEncoding=Tight -NoJPEG=1 -CompressLevel=1 -AutoSelect=0 -CustomCompressLevel=1`
 
-* **Client Web Mobile Cho iPhone / iPad ([web/](web/)):**
-  * Chạy trực tiếp trên trình duyệt Safari (Hỗ trợ PWA Add to Home Screen toàn màn hình).
+* **Client Web Mobile Cho iPhone / iPad / Android ([web/](web/)):**
+  * Chạy trực tiếp trên trình duyệt Safari / Chrome (Hỗ trợ PWA Add to Home Screen toàn màn hình).
   * Cầu nối `websockify` (Port 6080) kết nối vào TigerVNC `:1` (Port 5901).
-  * Tích hợp **Cụm phím ảo cảm ứng bán trong suốt (Virtual Touch D-Pad & Action Buttons)** chuẩn game NSO (2, 4, 6, 8, 5, 7, 9, *, #) không che khuất màn hình.
-  * Cố định link vĩnh viễn 100% bằng **Ngrok Permanent Static Tunnel** (`https://<domain>.ngrok-free.app`), không bị mất kết nối hay đổi link khi reboot.
+  * **Bàn phím ảo cảm ứng đa năng (Universal Multi-Game Keypad):** Hỗ trợ chuẩn phím số Nokia T9 (`8, 2, 4, 6, 5 OK, 7, 9, 1, 3, * Menu, # Thoát, 0 Nhặt`), tương thích 100% mọi game Java (Avatar, Ngọc Rồng, Hiệp Sĩ, Mobi Army, Ninja School,...), có nút `⚡ Phím Số` chuyển đổi linh hoạt.
+  * **Khóa bảo mật mã PIN riêng biệt (PIN Lock Gate):** Mỗi VPS có mã PIN riêng (Ví dụ: `--pin 8888`), chống 100% người ngoài xem lén, hỗ trợ ghi nhớ trên iPhone để vào thẳng 1-chạm.
+  * **Tăng tốc phần cứng GPU Zero-Lag:** Ép vẽ GPU (`translateZ(0)`), triệt tiêu độ trễ 300ms của iOS, giữ nét pixel art chống nhòe font chữ.
+  * Cố định link vĩnh viễn 100% bằng **Ngrok Permanent Static Tunnel** (`https://<domain>.ngrok-free.dev`), không bị mất kết nối hay đổi link khi reboot.
 
 
 ---
