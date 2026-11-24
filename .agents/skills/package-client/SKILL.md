@@ -7,7 +7,12 @@ description: >-
 
 # PACKAGE CLIENT SKILL - ĐÓNG GÓI BỘ ĐIỀU KHIỂN BÀN GIAO CHO KHÁCH HÀNG (1-CLICK)
 
-Khi bạn nhận dịch vụ cấu hình VPS treo game cho khách hàng, khách thường là người chơi bình thường, **không có kiến thức về SSH, Linux hay Terminal**.
+> [!IMPORTANT]
+> **ĐIỀU KIỆN KÍCH HOẠT:**
+> Skill này **CHỈ ĐƯỢC THỰC HIỆN KHI NGƯỜI DÙNG YÊU CẦU ĐÍCH DANH** (*"đóng gói app cho khách", "xuất file exe", "tạo bộ cài cho khách", "package-client"*).
+> **Mặc định:** Toàn bộ hệ thống giao diện điều khiển bàn giao cho khách là **Web Mobile Phone trên Safari / Chrome** (noVNC + Virtual Gamepad + mã PIN riêng). Tuyệt đối không tự ý đóng gói EXE/ZIP khi người dùng không yêu cầu.
+
+Khi bạn nhận dịch vụ cấu hình VPS treo game cho khách hàng có nhu cầu điều khiển trên máy tính Windows, khách thường là người chơi bình thường, **không có kiến thức về SSH, Linux hay Terminal**.
 
 Skill này cung cấp quy trình tự động hóa 100% để bạn tạo ra **1 file EXE duy nhất (hoặc 1 file ZIP Portable)** gửi cho khách qua Zalo/Drive. Khách chỉ cần tải về, nhấp đúp chuột là vào thẳng game cày 24/7!
 

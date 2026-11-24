@@ -70,6 +70,15 @@ Skill này là **khung mẫu thiết kế chuẩn (Reference Blueprint)** của 
 > **8. NGUYÊN TẮC CÔ LẬP TUYỆT ĐỐI & KHÔNG XÂM PHẠM DỰ ÁN KHÁC (STRICT NON-INTRUSION):**
 > VPS có thể chạy chung với **Web, Tool API, Bot, Game Server,...** Dự án này chỉ làm đúng nhiệm vụ treo game trong `/opt/jar-manager/` và VNC Display `:1`. Tuyệt đối **KHÔNG can thiệp, tắt, gỡ bỏ hay đụng chạm** vào bất kỳ dịch vụ hoặc dữ liệu nào khác trên máy chủ.
 
+> [!IMPORTANT]
+> **9. MẶC ĐỊNH ĐIỀU KHIỂN QUA WEB PHONE (BẮT BUỘC) — KHÔNG TỰ Ý ĐÓNG GÓI CLIENT:**
+> Sau khi cài đặt VPS xong, hệ thống **BẮT BUỘC cấu hình giao diện Web Phone** (`python tools/vps_manager.py setup-web <name-vps>`) để người dùng/khách điều khiển trực tiếp trên trình duyệt Safari/Chrome (noVNC + Virtual Gamepad + mã PIN).
+> **Nếu người dùng không yêu cầu skill `package-client`**, Agent **TUYỆT ĐỐI KHÔNG TỰ Ý ĐÓNG GÓI** file `NSO_Client.exe` hay ZIP. Chỉ đóng gói khi có yêu cầu rõ ràng.
+
+> [!TIP]
+> **10. THAO TÁC LUÔN GẮN LIỀN VỚI 1 VPS CỤ THỂ:**
+> Luôn chỉ định rõ tên hoặc ID của VPS trong danh bạ (`vps_registry.json`) trước khi thực thi bất kỳ thao tác nào (`vps1`, `vps2`, `khách_tuấn`...). Cấm thao tác chung chung.
+
 ---
 
 ## 🖥️ PHẦN 3: CẤU HÌNH SERVER VPS (ZERO-LAG 60 FPS ENGINE)

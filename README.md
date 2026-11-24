@@ -118,19 +118,26 @@ bash /opt/jar-manager/scripts/slot-manager.sh list
 # Khách 3 vào link cũ nhưng nhập PIN 3333 -> Vào đúng Ngọc Rồng!
 ```
 
-### 3.4. Quản lý Multi-VPS qua `vps_manager.py`
+### 3.4. Quản lý Multi-VPS qua `vps_manager.py` (Cú pháp chuẩn hóa)
 ```bash
-# Xem danh sách VPS
+# Xem danh sách VPS trong danh bạ
 python tools/vps_manager.py list
 
-# Kiểm tra trạng thái các VPS
-python tools/vps_manager.py status --vps vps1
+# Kiểm tra trạng thái máy chủ
+python tools/vps_manager.py status vps1
 
-# Cập nhật game riêng cho VPS vps1
-python tools/vps_manager.py update-game --vps vps1 --jar servers/vps1/nepsilon.jar
+# Cập nhật thông số VPS: update-vps <name-vps> <host:port>
+python tools/vps_manager.py update-vps vps1 14.250.250.229:12724 --sync
 
-# Đồng bộ scripts mới nhất sang VPS
-python tools/vps_manager.py update-scripts --vps vps1
+# Cập nhật game: update-game <name-vps> : thay <tab-game-cũ> = <bản jar mới>
+python tools/vps_manager.py update-game vps1 --tab 1 --jar servers/vps1/nepsilon.jar
+python tools/vps_manager.py update-game vps1 --tab 2 --jar D:/games/Avatar250.jar
+
+# Thu hồi & xóa slot khách: remove-client <name-vps> <tab-game-khách>
+python tools/vps_manager.py remove-client vps1 slot2
+
+# Cấu hình Web Phone điều khiển bắt buộc trên Safari/Chrome
+python tools/vps_manager.py setup-web vps1 --pin 1234
 ```
 
 ### 3.5. Cửa Sổ Giám Sát Trung Tâm: Admin Dashboard GUI (Windows)

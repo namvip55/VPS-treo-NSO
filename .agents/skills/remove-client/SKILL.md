@@ -1,13 +1,47 @@
 ---
 name: remove-client
 description: >-
-  Quy trình và tập lệnh thu hồi quyền truy cập, tắt game và dọn sạch dữ liệu khi khách hàng ngừng thuê VPS hoặc ngừng thuê slot game J2ME.
-  Kích hoạt khi người dùng muốn xóa khách, thu hồi quyền truy cập, xóa slot game, ngừng treo acc khách, hoặc dọn dẹp giải phóng tài nguyên VPS.
+  Thu hồi quyền truy cập và xóa tab game của khách thuê: remove-client <name-vps> <tab-game-khách>.
+  Kích hoạt khi khách hàng ngừng thuê slot, cần xóa tab game, thu hồi mã PIN, dừng game và dọn sạch dữ liệu RMS của khách trên 1 VPS cụ thể.
 ---
 
-# REMOVE CLIENT & CLEANUP SKILL - THU HỒI & DỌN DẸP KHÁCH HÀNG
+# REMOVE CLIENT SKILL - THU HỒI & DỌN DẸP TAB GAME KHÁCH THUÊ
 
-Skill này cung cấp quy trình chuẩn mực và các tập lệnh tự động để **thu hồi quyền truy cập, dừng tiến trình game và xóa sạch dữ liệu tài khoản** khi một khách hàng ngừng thuê dịch vụ treo game (hết hạn hoặc không gia hạn), giúp giải phóng tài nguyên và bảo vệ quyền riêng tư.
+Skill này cung cấp quy trình chuẩn mực và tập lệnh tự động để **thu hồi quyền truy cập, dừng tiến trình game và xóa sạch dữ liệu tài khoản** khi một khách hàng ngừng thuê dịch vụ (hết hạn hoặc không gia hạn).
+
+---
+
+## 📌 1. CÚ PHÁP CHUẨN: `remove-client <name-vps> <tab-game-khách>`
+
+Thao tác thu hồi **BẮT BUỘC** phải trỏ đúng tên VPS và đúng tab/slot game khách thuê:
+
+```powershell
+# Cú pháp tổng quát:
+python tools/vps_manager.py remove-client <name-vps> <tab-game-khách>
+
+# Ví dụ 1: Xóa tab game khách thuê ở Slot 2 trên máy chủ vps1:
+python tools/vps_manager.py remove-client vps1 slot2
+# hoặc:
+python tools/vps_manager.py remove-client vps1 2
+
+# Ví dụ 2: Xóa slot 3 trên VPS khách mẫu vps2_sample:
+python tools/vps_manager.py remove-client vps2_sample 3
+```
+
+---
+
+## 🛡️ 2. NGUYÊN TẮC BẢO VỆ & CÔ LẬP TUYỆT ĐỐI
+
+1. **Trỏ đúng Tab Game Khách Thuê:**
+   * Hệ thống chỉ tắt màn hình ảo VNC `:N`, tiến trình game `slotN`, và thư mục `/opt/jar-manager/profiles/slotN/`.
+   * **Slot 1 (Game gốc của chủ VPS) và các tab của khách khác được bảo vệ nguyên vẹn 100%.**
+2. **Thu Hồi Quyền Truy Cập Ngay Lập Tức:**
+   * Mã PIN của khách bị xóa vĩnh viễn khỏi file cấu hình định tuyến `/opt/jar-manager/web/tokens.cfg`.
+   * Khách cũ mở link Web Phone Safari/Chrome nhập mã PIN cũ sẽ bị từ chối ngay lập tức!
+3. **Bảo Mật Dữ Liệu RMS:**
+   * Dữ liệu tài khoản, mật khẩu game của khách trong thư mục RMS được dọn sạch hoàn toàn, không lưu lại dấu vết.
+4. **Giải Phóng Bộ Nhớ RAM:**
+   * Trả lại ngay lập tức ~70-80MB RAM cho VPS để sẵn sàng cấp phát cho khách hàng tiếp theo.
 
 ---
 

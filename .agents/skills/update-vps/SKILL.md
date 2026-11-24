@@ -1,22 +1,53 @@
 ---
 name: update-vps
 description: >-
-  Quy trình tự động di chuyển hoặc chuyển đổi sang VPS mới cùng loại (IP NAT / vps1k.net).
-  Kích hoạt khi VPS cũ hết hạn, người dùng mua VPS mới, đổi IP/Port NAT mới, hoặc cần di chuyển hệ thống treo game sang một máy chủ VPS mới.
+  Cập nhật thông số hoặc di chuyển sang VPS mới trong danh sách: update-vps <name-vps> <thông số>.
+  Kích hoạt khi người dùng muốn cập nhật thông số Host, Port NAT, IP mới của 1 VPS, chuyển đổi VPS hoặc thay thế máy chủ trong hệ thống.
 ---
 
-# UPDATE VPS SKILL - DI CHUYỂN & DỰNG LẠI HỆ THỐNG TRÊN VPS MỚI (60 GIÂY)
+# UPDATE VPS SKILL - CẬP NHẬT THÔNG SỐ & DI CHUYỂN VPS (TRÊN 1 MÁY CHỦ CHỈ ĐỊNH)
 
-Skill này cung cấp quy trình và tập lệnh tự động hóa 100% để di chuyển toàn bộ môi trường treo game J2ME sang một máy chủ VPS mới (cùng loại IP NAT) khi bạn gia hạn, mua gói mới hoặc đổi nhà cung cấp.
+Skill này cung cấp quy trình và cú pháp chuẩn để **cập nhật thông số kết nối (Host, Port NAT, Key, Tên miền...) hoặc di chuyển hệ thống sang một máy chủ VPS mới** cho đúng 1 VPS cụ thể trong danh bạ hệ thống (`vps_registry.json` / `servers/<name-vps>/`).
 
 ---
 
-## 📋 1. Thông Tin Cần Chuẩn Bị Khi Có VPS Mới
+## 📌 1. CÚ PHÁP CHUẨN: `update-vps <name-vps> <thông số>`
 
-Khi mua VPS mới trên trang quản trị (ví dụ `vps1k.net`), bạn chỉ cần lấy 3 thông số:
-1. **IP / Host Remote:** (Ví dụ: `remote.io.vn` hoặc `103.xxx.xxx.xxx`)
-2. **Cổng SSH (Port NAT):** (Ví dụ: `10653` hoặc cổng mới như `10892`)
-3. **Mật khẩu root:** (Ví dụ: `<ROOT_PASSWORD>`)
+Mọi thao tác cập nhật VPS **BẮT BUỘC** gắn liền với tên/ID của VPS đích:
+
+```powershell
+# Cú pháp tổng quát:
+python tools/vps_manager.py update-vps <name-vps> <host:port> [options]
+
+# Ví dụ 1: Cập nhật Host và Port NAT mới cho vps1:
+python tools/vps_manager.py update-vps vps1 14.250.250.229:12724 --sync
+
+# Ví dụ 2: Cập nhật thông số và tên miền Web Phone riêng:
+python tools/vps_manager.py update-vps vps2_sample 14.236.172.236:10892 --web-url "https://vps2.ngrok-free.dev" --sync
+```
+
+**Các thông số hỗ trợ:**
+* `<name-vps>`: Tên/ID máy chủ trong danh bạ (ví dụ `vps1`, `vps2`, `khách Tuấn`...).
+* `<host:port>`: Địa chỉ IPv4 trực tiếp và Cổng NAT mới (ví dụ: `14.250.250.229:12724`).
+* `--name <tên>`: Tên gợi nhớ hiển thị trên Dashboard.
+* `--web-url <url>`: Đường dẫn Web Mobile riêng cho VPS đó.
+* `--sync`: Tự động đồng bộ các tập lệnh quản lý mới nhất sang VPS mới.
+
+---
+
+## ⚡ 2. NGUYÊN TẮC VẬN HÀNH & ĐIỀU KHIỂN
+
+1. **Cấu hình Web Mobile Phone là BẮT BUỘC:**
+   Sau khi cập nhật thông số hoặc dựng mới VPS, hệ thống **bắt buộc cấu hình nhánh Web Phone** để người dùng điều khiển trực tiếp trên Safari / Chrome (noVNC + Virtual Gamepad + mã PIN):
+   ```powershell
+   python tools/vps_manager.py setup-web <name-vps> --pin 1234
+   ```
+2. **KHÔNG TỰ Ý ĐÓNG GÓI CLIENT (EXE/ZIP):**
+   * Nếu người dùng **không yêu cầu skill `package-client`**, Agent **TUYỆT ĐỐI KHÔNG TỰ Ý ĐÓNG GÓI** file EXE hay ZIP giao cho khách.
+   * Giao diện điều khiển mặc định luôn là Web Phone. Chỉ khi người dùng yêu cầu rõ ràng (*"đóng gói app cho khách", "xuất file exe", "giao client PC"* hoặc gọi `package-client`) thì mới xuất file.
+3. **Cô Lập Độc Lập:**
+   * Thông số mới được ghi trực tiếp vào `servers/<name-vps>/config.json` và `vps_registry.json`.
+   * Hoàn toàn không đụng chạm đến bất kỳ VPS nào khác trong danh bạ.
 
 ---
 

@@ -178,30 +178,54 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
 
 ---
 
-## 🌐 6. QUY CHUẨN QUẢN LÝ MULTI-VPS & CÔ LẬP GAME (MULTI-NODE ZERO-CONFUSION PROTOCOL)
+## 🌐 6. QUY CHUẨN QUẢN LÝ MULTI-VPS & ĐIỀU KHIỂN GAME (MULTI-NODE ZERO-CONFUSION PROTOCOL)
 
-Khi dự án quản lý nhiều VPS cùng lúc (VPS cá nhân, VPS khách hàng), mọi AI Agent và lập trình viên **BẮT BUỘC TUÂN THỦ** kiến trúc phân vùng độc lập để **TUYỆT ĐỐI KHÔNG BAO GIỜ BỊ NHẦM LẪN GAME HAY CẤU HÌNH**:
+Khi dự án quản lý nhiều VPS cùng lúc (VPS cá nhân, VPS khách hàng), mọi AI Agent và lập trình viên **BẮT BUỘC TUÂN THỦ** 5 nguyên tắc cốt lõi:
 
-### 6.1. Cấu trúc phân vùng `servers/<vps_id>/`:
+### 6.1. Tất cả Skill phải thao tác trên 1 VPS cụ thể trong danh sách:
+* Mọi hành động (`setup`, `update-vps`, `update-game`, `remove-client`, `status`) **BẮT BUỘC gắn liền với 1 VPS cụ thể** (`<name-vps>` / `<vps_id>`) trong danh bạ [vps_registry.json](file:///d:/project/Vps-Treo-Nso/vps_registry.json).
+* Cấm tuyệt đối thao tác chung chung hoặc đoán mò khi chưa rõ VPS đích.
+
+### 6.2. Cú pháp `update-vps <name-vps> <thông số>`:
+* Cập nhật thông số kết nối (Host, Port NAT, Tên, SSH Key, Web URL...) của đúng VPS đó trong `vps_registry.json` và `servers/<name-vps>/config.json`.
+* Ví dụ:
+  ```powershell
+  python tools/vps_manager.py update-vps vps1 14.250.250.229:12724 --sync
+  ```
+
+### 6.3. Cú pháp `update-game <name-vps> : thay <tab-game-cũ> = <bản jar mới>`:
+* Trên một VPS có thể chạy nhiều tab/slot game (Slot 1 là game gốc, Slot 2, 3... là game của khách).
+* Khi cập nhật game, Agent phải xác định đúng tab/slot game cần thay thế và file JAR mới:
+  ```powershell
+  # Thay thế game gốc (Tab 1 / Slot 1):
+  python tools/vps_manager.py update-game vps1 --tab 1 --jar "path/to/game_moi.jar"
+
+  # Thay thế game của tab khách (ví dụ Tab 2):
+  python tools/vps_manager.py update-game vps1 --tab 2 --jar "path/to/avatar250.jar"
+  ```
+* **Nguyên tắc cô lập:** Chỉ thay thế file JAR và restart đúng tab/slot chỉ định. Toàn bộ các tab game khác trên VPS được giữ nguyên 100%.
+
+### 6.4. Mặc định điều khiển qua Web Phone (BẮT BUỘC) - Không tự ý đóng gói:
+* **BẮT BUỘC:** Mọi VPS và mọi slot game đều phải được cấu hình giao diện **Web Mobile Phone** (noVNC + websockify Token Routing + Web Virtual Gamepad + mã PIN riêng) để khách/chủ chơi trực tiếp trên Safari / Chrome.
+* **KHÔNG TỰ Ý ĐÓNG GÓI:** Nếu người dùng **KHÔNG yêu cầu skill `package-client`**, Agent **TUYỆT ĐỐI KHÔNG TỰ Ý ĐÓNG GÓI** bộ cài `NSO_Client.exe` hay file ZIP. Mặc định chỉ cung cấp đường link Web Phone kèm mã PIN. Chỉ khi User có yêu cầu rõ ràng (*"đóng gói app cho khách", "xuất file exe", "giao client PC"*, hoặc gọi `package-client`) thì mới xuất file EXE/ZIP.
+
+### 6.5. Cú pháp `remove-client <name-vps> <tab-game-khách>`:
+* Khi khách ngừng thuê, phải trỏ đúng tab game / slot game mà khách đó thuê trên VPS đó:
+  ```powershell
+  python tools/vps_manager.py remove-client vps1 slot2
+  # hoặc:
+  python tools/vps_manager.py remove-client vps1 2
+  ```
+* Thu hồi chính xác mã PIN của khách trong `tokens.cfg`, dừng game và VNC của tab đó, dọn sạch dữ liệu RMS trong `profiles/slotN`, hoàn trả RAM cho VPS mà không ảnh hưởng bất kỳ tab game nào khác.
+
+### 6.6. Cấu trúc phân vùng độc lập `servers/<vps_id>/`:
 Mỗi VPS sở hữu một không gian độc lập tuyệt đối:
 ```text
 servers/
 ├── vps1/                          # VPS Chính
-│   ├── config.json                # Thông số: Host, Port, Game, Key, Acc
+│   ├── config.json                # Thông số: Host, Port, Game, Key, Acc, WebUrl
 │   └── nepsilon.jar               # File game riêng của vps1
 └── vps2_sample/                   # VPS Khách mẫu
     ├── config.json                # Thông số riêng của vps2
     └── HoiUc220.jar               # File game riêng của vps2
 ```
-* **Danh bạ trung tâm:** [vps_registry.json](file:///d:/project/Vps-Treo-Nso/vps_registry.json) lưu trữ toàn bộ danh sách VPS và chỉ định `active_vps`.
-
-### 6.2. Quy tắc hành động cho AI Agent:
-1. **Luôn xác định rõ mục tiêu trước khi thực thi:**
-   - Khi Người Dùng yêu cầu: *"Cập nhật game...", "Bật game...", "Kiểm tra VPS..."*, Agent phải kiểm tra xem User có chỉ định VPS cụ thể (ví dụ: `vps1`, `vps2`, `khách Tuấn`...) hay không.
-   - Nếu User chỉ định VPS cụ thể ➜ Chỉ thao tác trong `servers/<vps_id>/` và chạy lệnh với cờ `--vps <vps_id>`.
-   - Nếu User không chỉ định ➜ Mặc định sử dụng `active_vps` trong `vps_registry.json` hoặc hỏi lại để xác nhận nếu có nhiều máy chủ đang hoạt động.
-2. **Nguyên tắc không lẫn Game:**
-   - File game của VPS nào **bắt buộc nằm trong thư mục của VPS đó** (`servers/<vps_id>/`).
-   - Cấm sao chép đè file `.jar` giữa các thư mục VPS khác nhau trừ khi có chỉ thị trực tiếp từ User.
-3. **Sử dụng công cụ tập trung:**
-   - Dùng `python tools/vps_manager.py update-game --vps <vps_id>` để đảm bảo file game được đưa lên đúng máy chủ đích mà không ảnh hưởng bất kỳ VPS nào khác.
