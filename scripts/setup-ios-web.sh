@@ -6,10 +6,23 @@
 
 set -e
 
-NGROK_TOKEN=""
-NGROK_DOMAIN=""
+NGROK_TOKEN="${NGROK_TOKEN:-${NGROK_AUTHTOKEN:-}}"
+NGROK_DOMAIN="${NGROK_DOMAIN:-}"
 SRC_WEB_DIR="/opt/jar-manager/web"
 PROJECT_WEB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../web" && pwd)"
+
+# Đọc từ file .env nếu có sẵn trong thư mục
+if [ -f "/opt/jar-manager/.env" ]; then
+  # shellcheck disable=SC1091
+  source "/opt/jar-manager/.env"
+  NGROK_TOKEN="${NGROK_TOKEN:-${NGROK_AUTHTOKEN:-}}"
+  NGROK_DOMAIN="${NGROK_DOMAIN:-}"
+elif [ -f "$(dirname "${BASH_SOURCE[0]}")/../.env" ]; then
+  # shellcheck disable=SC1091
+  source "$(dirname "${BASH_SOURCE[0]}")/../.env"
+  NGROK_TOKEN="${NGROK_TOKEN:-${NGROK_AUTHTOKEN:-}}"
+  NGROK_DOMAIN="${NGROK_DOMAIN:-}"
+fi
 
 # Đọc tham số dòng lệnh
 while [[ $# -gt 0 ]]; do
@@ -24,11 +37,23 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)
       echo "Tham so khong hop le: $1"
-      echo "Cach dung: $0 --token <NGROK_AUTH_TOKEN> --domain <YOUR_STATIC_DOMAIN.ngrok-free.app>"
+      echo "Cach dung: $0 [--token <TOKEN>] [--domain <DOMAIN>]"
       exit 1
       ;;
   esac
 done
+
+# Nếu vẫn chưa có, hỏi tương tác ẩn ký tự (không lộ màn hình)
+if [ -t 0 ] && [ -z "$NGROK_TOKEN" ]; then
+  echo -n "Nhập Ngrok Authtoken (ẩn ký tự): "
+  read -r -s NGROK_TOKEN
+  echo ""
+fi
+
+if [ -t 0 ] && [ -z "$NGROK_DOMAIN" ]; then
+  echo -n "Nhập Ngrok Domain (ví dụ: mistily-stipular-kristopher.ngrok-free.dev): "
+  read -r NGROK_DOMAIN
+fi
 
 echo "=================================================================="
 echo "    BẮT ĐẦU CÀI ĐẶT NHÁNH WEB MOBILE & TUNNEL CHO IPHONE / IPAD"

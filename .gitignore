@@ -10,5 +10,11 @@ vncviewer.exe
 *expressions*.txt
 *rules*.txt
 *.secrets*
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+secrets/
 __pycache__/
 *.pyc
