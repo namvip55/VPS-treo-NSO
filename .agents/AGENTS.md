@@ -12,4 +12,5 @@ Tài liệu hướng dẫn, bảng thông số và quy tắc cốt lõi của h�
    * [update-game](skills/update-game/SKILL.md)
    * [update-vps](skills/update-vps/SKILL.md)
    * [package-client](skills/package-client/SKILL.md)
+   * [remove-client](skills/remove-client/SKILL.md)
 5. **Tài liệu hệ thống:** `docs/`

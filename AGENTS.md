@@ -168,6 +168,7 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
 2. **[update-game](.agents/skills/update-game/SKILL.md):** Hướng dẫn đổi sang game .jar khác hoặc nạp bản mod mới trong 10 giây qua symlink.
 3. **[update-vps](.agents/skills/update-vps/SKILL.md):** Quy trình tự động di chuyển toàn bộ hệ thống sang một máy chủ VPS mới cùng loại trong 1 phút.
 4. **[package-client](.agents/skills/package-client/SKILL.md):** Quy trình và tập lệnh tự động đóng gói ứng dụng điều khiển 1-click giao cho khách (Single EXE hoặc Portable ZIP).
+5. **[remove-client](.agents/skills/remove-client/SKILL.md):** Quy trình thu hồi quyền truy cập, tắt game và xóa sạch dữ liệu bảo mật khi khách ngừng thuê slot hoặc ngừng thuê VPS.
 
 ---
 

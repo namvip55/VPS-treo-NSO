@@ -151,11 +151,72 @@ for sid, item in data.items():
         echo "Da dung slot ${SLOT_ID}."
         ;;
 
+    remove|delete)
+        SLOT_ID="$2"
+        if [ -z "$SLOT_ID" ]; then
+            echo "Cach dung: $0 remove <slot_number>"
+            exit 1
+        fi
+        ACC_NAME="slot${SLOT_ID}"
+        echo "=== [1/4] DUNG TIEN TRINH GAME VA VNC DISPLAY :${SLOT_ID} ==="
+        /opt/jar-manager/scripts/stop-acc.sh "$ACC_NAME" 2>/dev/null || true
+        /usr/bin/vncserver -kill ":${SLOT_ID}" >/dev/null 2>&1 || true
+
+        echo "=== [2/4] THU HOI MA PIN VA TOKEN ROUTING TRUOC DO ==="
+        PIN=$(python3 -c "
+import json
+try:
+    with open('$SLOT_FILE') as f: d = json.load(f)
+    print(d.get('$SLOT_ID', {}).get('pin', ''))
+except: print('')
+")
+        if [ -n "$PIN" ]; then
+            sed -i "/^${PIN}:/d" "$TOKENS_CFG" 2>/dev/null || true
+            echo "--> Da thu hoi ma PIN: ${PIN}"
+        fi
+
+        echo "=== [3/4] XOA SACH DU LIEU TAI KHOAN VA RMS CU ==="
+        rm -rf "/opt/jar-manager/profiles/${ACC_NAME}"
+
+        echo "=== [4/4] DONG BO LAI SLOTS.JSON VA WEB/CONFIG.JS ==="
+        python3 -c "
+import json
+try:
+    with open('$SLOT_FILE') as f: d = json.load(f)
+    if '$SLOT_ID' in d: del d['$SLOT_ID']
+    with open('$SLOT_FILE', 'w') as f: json.dump(d, f, indent=2)
+except: pass
+"
+        python3 -c "
+import json, os
+SLOT_FILE = '$SLOT_FILE'
+WEB_CONFIG = '$WEB_CONFIG'
+data = {}
+if os.path.exists(SLOT_FILE):
+    try:
+        with open(SLOT_FILE) as f: data = json.load(f)
+    except: pass
+lines = ['// Tu dong sinh boi slot-manager.sh', 'window.SLOTS = {']
+for sid, item in data.items():
+    lines.append(f\"  \\\"{item['pin']}\\\": {{ acc: \\\"{item['acc']}\\\", game: \\\"{item['game']}\\\", slot: {item['slot']}, port: {item['port']} }}, \")
+lines.append('};')
+lines.append(\"window.CONFIG = { title: 'MULTI-GAME CLOUD', default_pin: '1234' };\")
+with open(WEB_CONFIG, 'w') as f: f.write('\n'.join(lines) + '\n')
+"
+        echo "=================================================================="
+        echo "✔ ĐÃ XÓA HOÀN TOÀN SLOT ${SLOT_ID} KHỎI VPS!"
+        echo "👉 Khách cũ bị tước quyền truy cập ngay lập tức."
+        echo "👉 Dữ liệu RMS của khách cũ đã được xóa sạch bảo mật."
+        echo "👉 Màn hình ảo và RAM đã được giải phóng cho khách tiếp theo!"
+        echo "=================================================================="
+        ;;
+
     *)
-        echo "Cach dung: $0 {add|list|stop}"
+        echo "Cach dung: $0 {add|list|stop|remove}"
         echo "  - $0 add <slot_id> <game_jar> <pin> [tieu_de]: Them 1 game moi cho khach moi"
         echo "  - $0 list: Xem danh sach cac game dang chay tren VPS"
-        echo "  - $0 stop <slot_id>: Dung 1 slot game cu the"
+        echo "  - $0 stop <slot_id>: Tam dung 1 slot game cu the"
+        echo "  - $0 remove <slot_id>: Xoa hoan toan slot, thu hoi PIN va don sach RMS khach cu"
         exit 1
         ;;
 esac

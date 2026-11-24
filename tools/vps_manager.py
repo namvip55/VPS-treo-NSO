@@ -285,6 +285,22 @@ def cmd_export_client(args):
 
     subprocess.run(cmd, shell=False)
 
+def cmd_remove_slot(args):
+    servers = get_servers()
+    if args.vps not in servers:
+        print(f"[!] Khong tim thay VPS co ID: {args.vps}")
+        return
+    cfg = servers[args.vps]
+    slot_id = str(args.slot)
+    print(f"[*] Dang xoa slot {slot_id} tren VPS {args.vps} ({cfg['host']}:{cfg['port']})...")
+    remote_cmd = f"bash /opt/jar-manager/scripts/slot-manager.sh remove {shlex.quote(slot_id)}"
+    cmd = build_ssh_cmd_args(cfg, remote_cmd)
+    res = subprocess.run(cmd, shell=False)
+    if res.returncode == 0:
+        print(f"[+] Da xoa thanh cong slot {slot_id} tren {args.vps}!")
+    else:
+        print(f"[!] Loi khi xoa slot {slot_id} tren {args.vps}")
+
 def main():
     parser = argparse.ArgumentParser(description="Multi-VPS Manager - Quản lý và cập nhật từng VPS riêng biệt")
     subparsers = parser.add_subparsers(dest="command", help="Lệnh thực hiện")
@@ -318,6 +334,12 @@ def main():
     p_export.add_argument("--mode", choices=["exe", "zip"], default="exe", help="Định dạng xuất (exe hoặc zip)")
     p_export.add_argument("--push-pubkey", action="store_true", help="Tự động nạp public key an toàn vào VPS")
     p_export.set_defaults(func=cmd_export_client)
+
+    # remove-slot
+    p_rem_slot = subparsers.add_parser("remove-slot", help="Xóa hoàn toàn 1 slot game, thu hồi PIN và dọn dẹp khi khách ngừng thuê")
+    p_rem_slot.add_argument("--vps", required=True, help="ID của VPS")
+    p_rem_slot.add_argument("--slot", required=True, help="Số thứ tự slot cần xóa (ví dụ: 2, 3...)")
+    p_rem_slot.set_defaults(func=cmd_remove_slot)
 
     args = parser.parse_args()
     if not hasattr(args, "func"):
