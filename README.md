@@ -133,6 +133,17 @@ python tools/vps_manager.py update-game --vps vps1 --jar servers/vps1/nepsilon.j
 python tools/vps_manager.py update-scripts --vps vps1
 ```
 
+### 3.5. Cửa Sổ Giám Sát Trung Tâm: Admin Dashboard GUI (Windows)
+Chỉ cần nhấp đúp file **`admin_dashboard.bat`** (hoặc gõ `python tools/vps_manager.py gui`):
+* **Giám sát thời gian thực:** Xem danh sách mọi VPS, trạng thái Online/Offline, độ trễ Ping, biểu đồ RAM, Swap, CPU load và ước lượng dung lượng còn trống (chạy thêm được bao nhiêu slot game).
+* **Quản lý đa Game / Slot:** Hiển thị trực quan từng game đang chạy trên từng VPS (Slot ID, Tên game, Tài khoản, Mã PIN khách, Cổng VNC nội bộ, PID tiến trình).
+* **Thao tác 1-Click tiện lợi:**
+  - `[▶ Xem Live Màn Hình]`: Tự động tạo SSH tunnel và mở TigerVNC Viewer xem trực tiếp màn hình game của khách đang cày 24/7.
+  - `[+ Thêm Game Slot]`: Thêm game mới (Avatar, NRO, NSO...) cho khách mới mà không cần thêm link Ngrok.
+  - `[🗑 Xóa Slot / Thu Hồi]`: Tự động tắt game, thu hồi mã PIN, dọn sạch profile và cập nhật lại file cấu hình khi khách ngừng thuê.
+  - `[📋 Copy Link iPhone]`: Sao chép link Safari kèm mã PIN vào clipboard để gửi cho khách Mobile.
+  - `[📦 Xuất App Windows]`: 1-click đóng gói Single EXE cho khách chơi trên máy tính.
+
 ---
 
 ## ⚠️ 4. Các Quy Tắc Sống Còn Cần Nhớ

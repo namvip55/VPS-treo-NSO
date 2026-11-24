@@ -125,6 +125,12 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
   * **Tăng tốc phần cứng GPU Zero-Lag:** Ép vẽ GPU (`translateZ(0)`), triệt tiêu độ trễ 300ms của iOS, giữ nét pixel art chống nhòe font chữ.
   * Cố định link vĩnh viễn 100% bằng **Ngrok Permanent Static Tunnel** (`https://<domain>.ngrok-free.dev`), không bị mất kết nối hay đổi link khi reboot.
 
+* **Cửa Sổ Quản Trị Trung Tâm Admin Dashboard GUI ([tools/AdminDashboard.cs](tools/AdminDashboard.cs)):**
+  * Khởi chạy nhanh bằng file [admin_dashboard.bat](admin_dashboard.bat) hoặc `python tools/vps_manager.py gui`.
+  * Giám sát thời gian thực mọi VPS: Online/Offline, Ping ms, thanh trạng thái RAM trực quan, Swap, CPU load và ước lượng sức chứa thêm slot game.
+  * Quản lý trực quan từng Slot Game trên từng VPS: Slot ID, Tên game, Tài khoản, Mã PIN, Cổng VNC, PID.
+  * Tích hợp 1-click: Xem trực tiếp màn hình game khách (VNC qua SSH tunnel an toàn), thêm slot game mới, xóa dọn dẹp slot khi khách thôi thuê, copy link Safari cho iPhone, và xuất file EXE cho Windows.
+
 
 ---
 

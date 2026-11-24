@@ -301,9 +301,27 @@ def cmd_remove_slot(args):
     else:
         print(f"[!] Loi khi xoa slot {slot_id} tren {args.vps}")
 
+def cmd_gui(args):
+    exe_path = os.path.join(BASE_DIR, "AdminDashboard.exe")
+    if not os.path.exists(exe_path):
+        print("[*] Dang bien dich AdminDashboard.exe...")
+        csc = r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+        src = os.path.join(BASE_DIR, "tools", "AdminDashboard.cs")
+        cmd = [csc, "/target:winexe", "/r:System.Web.Extensions.dll", f"/out:{exe_path}", src]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode != 0:
+            print(f"[!] Loi bien dich: {res.stderr}")
+            return
+    print("[+] Dang mo giao dien JarManager Central Admin Dashboard...")
+    subprocess.Popen([exe_path], cwd=BASE_DIR)
+
 def main():
     parser = argparse.ArgumentParser(description="Multi-VPS Manager - Quản lý và cập nhật từng VPS riêng biệt")
     subparsers = parser.add_subparsers(dest="command", help="Lệnh thực hiện")
+
+    # gui
+    p_gui = subparsers.add_parser("gui", help="Mở cửa sổ đồ họa Admin Dashboard giám sát VPS & Game")
+    p_gui.set_defaults(func=cmd_gui)
 
     # list
     p_list = subparsers.add_parser("list", help="Xem danh sách tất cả VPS đã đăng ký")
