@@ -57,10 +57,10 @@ case "$ACTION" in
         ACC_NAME="slot${SLOT_ID}"
 
         echo "=== [1/4] KHOI TAO MAN HINH AO VNC :${SLOT_ID} (PORT ${VNC_PORT}) ==="
-        # Kiem tra neu display da chay, neu chua thi bat len
+        # Kiem tra neu display da chay, neu chua thi bat len (Che do khoa phien doc quyen 1 nguoi dieu khien: NeverShared + DisconnectClients=0)
         if ! pgrep -f "Xtigervnc :${SLOT_ID} " > /dev/null 2>&1 && [ ! -e "/tmp/.X11-unix/X${SLOT_ID}" ]; then
             /usr/bin/vncserver -kill ":${SLOT_ID}" >/dev/null 2>&1 || true
-            /usr/bin/vncserver ":${SLOT_ID}" -geometry 800x600 -depth 16 -localhost yes -SecurityTypes None
+            /usr/bin/vncserver ":${SLOT_ID}" -geometry 800x600 -depth 16 -localhost yes -SecurityTypes None -NeverShared -DisconnectClients=0
         fi
 
         echo "=== [2/4] KHOI CHAY GAME ${TITLE} CHO ACC ${ACC_NAME} ==="

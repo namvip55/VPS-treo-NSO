@@ -84,6 +84,8 @@ localhost
 SecurityTypes=None
 FrameRate=60
 CompareFB=1
+NeverShared=1
+DisconnectClients=0
 RemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b
 ```
 
@@ -464,7 +466,7 @@ run_ssh('mkdir -p /opt/jar-manager/{emulator,games,profiles,scripts} /root/.vnc 
 run_ssh('wget -O /opt/jar-manager/emulator/microemulator.jar https://repo1.maven.org/maven2/org/microemu/microemulator/2.0.4/microemulator-2.0.4.jar')
 
 # Config VNC
-vnc_cfg = "geometry=800x600\\ndepth=16\\nlocalhost\\nSecurityTypes=None\\nFrameRate=60\\nCompareFB=1\\nRemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b"
+vnc_cfg = "geometry=800x600\\ndepth=16\\nlocalhost\\nSecurityTypes=None\\nFrameRate=60\\nCompareFB=1\\nNeverShared=1\\nDisconnectClients=0\\nRemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b"
 run_ssh(f'printf "{vnc_cfg}\\n" > /root/.vnc/config')
 
 # Systemd VNC

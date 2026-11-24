@@ -104,7 +104,7 @@ mkdir -p /opt/jar-manager/{emulator,games,profiles,scripts} /root/.vnc /root/.co
 wget -O /opt/jar-manager/emulator/microemulator.jar https://repo1.maven.org/maven2/org/microemu/microemulator/2.0.4/microemulator-2.0.4.jar
 ```
 
-### 3.3. Cấu hình TigerVNC Server (800x600 -depth 16, 60 FPS & Remap Phím)
+### 3.3. Cấu hình TigerVNC Server (800x600 -depth 16, 60 FPS, Khóa phiên độc quyền & Remap Phím)
 Tạo file `/root/.vnc/config`:
 ```ini
 geometry=800x600
@@ -113,6 +113,8 @@ localhost
 SecurityTypes=None
 FrameRate=60
 CompareFB=1
+NeverShared=1
+DisconnectClients=0
 RemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b
 ```
 
@@ -231,8 +233,8 @@ print("=== 2. SETUP MICROEMULATOR & VNC 60 FPS ZERO-LAG ===")
 run_ssh('mkdir -p /opt/jar-manager/{emulator,games,profiles,scripts} /root/.vnc /root/.config/openbox')
 run_ssh('wget -O /opt/jar-manager/emulator/microemulator.jar https://repo1.maven.org/maven2/org/microemu/microemulator/2.0.4/microemulator-2.0.4.jar')
 
-# Config VNC 60 FPS NoJPEG
-vnc_cfg = "geometry=800x600\\ndepth=16\\nlocalhost\\nSecurityTypes=None\\nFrameRate=60\\nCompareFB=1\\nRemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b"
+# Config VNC 60 FPS NoJPEG + Khoa phien doc quyen NeverShared / DisconnectClients=0
+vnc_cfg = "geometry=800x600\\ndepth=16\\nlocalhost\\nSecurityTypes=None\\nFrameRate=60\\nCompareFB=1\\nNeverShared=1\\nDisconnectClients=0\\nRemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b"
 run_ssh(f'printf "{vnc_cfg}\\n" > /root/.vnc/config')
 run_ssh('systemctl restart vncserver.service')
 

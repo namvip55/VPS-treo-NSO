@@ -138,13 +138,15 @@ run("mkdir -p /opt/jar-manager/{emulator,games,profiles,scripts} /root/.vnc /roo
 # 4. Tải MicroEmulator
 run("wget -O /opt/jar-manager/emulator/microemulator.jar https://repo1.maven.org/maven2/org/microemu/microemulator/2.0.4/microemulator-2.0.4.jar")
 
-# 5. Cấu hình TigerVNC chuẩn 800x600, FrameRate=30 và Remap phím NumPad
+# 5. Cấu hình TigerVNC chuẩn 800x600, FrameRate=60, Khóa phiên độc quyền & Remap phím NumPad
 vnc_conf = """geometry=800x600
 depth=16
 localhost
 SecurityTypes=None
-FrameRate=30
+FrameRate=60
 CompareFB=1
+NeverShared=1
+DisconnectClients=0
 RemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b"""
 subprocess.run(f'ssh vps-jar "cat << \'EOF\' > /root/.vnc/config\\n{vnc_conf}\\nEOF"', shell=True)
 

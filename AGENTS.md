@@ -85,9 +85,12 @@ Tài liệu này được thiết kế để bất kỳ AI Agent nào khi bướ
     SecurityTypes=None
     FrameRate=60
     CompareFB=1
+    NeverShared=1
+    DisconnectClients=0
     RemapKeys=0xffb8<>0xffb2,0xffb7<>0xffb1,0xffb9<>0xffb3,0xff97<>0xff99,0xff95<>0xff9c,0xff9a<>0xff9b
     ```
   * `FrameRate=60` + `CompareFB=1`: Tốc độ 60 khung hình/giây cực mượt kết hợp thuật toán so sánh framebuffer giảm 50% CPU và băng thông.
+  * `NeverShared=1` + `DisconnectClients=0`: **Cơ chế Khóa Phiên Độc Quyền 1 Người Điều Khiển (Exclusive Anti-Conflict Lock)**. Khi 1 bên (web hoặc app) đang kết nối điều khiển tab game, bất kỳ thiết bị nào khác cùng truy cập tab game đó sẽ bị từ chối kết nối ngay lập tức (`Refused`), chống tranh chấp phím hoặc xem lén. Khi người đang chơi đóng web/app, tab sẽ tự động mở khóa cho phiên tiếp theo.
 
 * **Cơ chế Điều Tiết Tài Nguyên Động Hai Chế Độ (Dual-Mode Dynamic Scaling):**
   * **Chế độ Thao tác (Active Mode - `mode-active.sh`):** Khi người dùng mở VNC vào game, CPU được nâng ưu tiên (`renice -n 0`), focus cửa sổ game, hiển thị 60 FPS NoJPEG sắc nét từng pixel.

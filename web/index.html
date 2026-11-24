@@ -185,7 +185,8 @@
         const screen = document.getElementById('vnc-screen');
         const rfb = new RFB(screen, vncUrl, {
           credentials: { password: pin || urlParams.get('password') || '' },
-          wsProtocols: ['binary']
+          wsProtocols: ['binary'],
+          shared: false
         });
 
         // TỐI ƯU HÓA ĐỘ TRỄ CỰC THẤP (ZERO-LAG 60 FPS CHO MOBILE)

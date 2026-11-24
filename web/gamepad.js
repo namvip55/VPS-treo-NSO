@@ -203,19 +203,27 @@ class MobileGameController {
   setupRfbListeners() {
     if (!this.rfb) return;
 
+    this.hasEverConnected = false;
+
     this.rfb.addEventListener('connect', () => {
+      this.hasEverConnected = true;
       this.updateStatus('ONLINE (60 FPS)', '#22c55e');
       this.showMessage('ĐÃ KẾT NỐI VÀO GAME!', 1500);
     });
 
     this.rfb.addEventListener('disconnect', (e) => {
-      this.updateStatus('MẤT KẾT NỐI', '#ef4444');
-      this.showMessage('Đã ngắt kết nối khỏi VPS. Đang thử kết nối lại...', 4000);
+      if (!this.hasEverConnected) {
+        this.updateStatus('ĐANG BẬN (CÓ NGƯỜI ĐIỀU KHIỂN)', '#ef4444');
+        this.showMessage('⛔ Tab game này hiện đang có người điều khiển! Hệ thống khóa phiên độc quyền để tránh xung đột.', 6000);
+      } else {
+        this.updateStatus('MẤT KẾT NỐI', '#ef4444');
+        this.showMessage('Đã ngắt kết nối khỏi VPS. Đang thử kết nối lại...', 4000);
+      }
     });
 
     this.rfb.addEventListener('securityfailure', (e) => {
-      this.updateStatus('LỖI BẢO MẬT', '#ef4444');
-      this.showMessage('Lỗi xác thực VNC.', 3000);
+      this.updateStatus('TỪ CHỐI TRUY CẬP', '#ef4444');
+      this.showMessage('⛔ Từ chối kết nối: Tab này đang có người điều khiển hoặc mã PIN không đúng.', 5000);
     });
   }
 

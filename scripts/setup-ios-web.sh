@@ -76,6 +76,12 @@ echo "[1/5] Dang kiem tra va cai dat cac goi phu thuoc (novnc, websockify)..."
 apt-get update -y >/dev/null 2>&1 || true
 apt-get install -y novnc websockify curl tar >/dev/null 2>&1
 
+# Đảm bảo cấu hình VNC kích hoạt chế độ Khóa phiên độc quyền 1 người điều khiển (Anti-Conflict)
+mkdir -p /root/.vnc
+touch /root/.vnc/config
+grep -q '^NeverShared' /root/.vnc/config 2>/dev/null || echo "NeverShared=1" >> /root/.vnc/config
+grep -q '^DisconnectClients' /root/.vnc/config 2>/dev/null || echo "DisconnectClients=0" >> /root/.vnc/config
+
 # 2. Chuẩn bị thư mục /opt/jar-manager/web
 echo "[2/5] Dong bo giao dien Web Mobile & Virtual Gamepad vao /opt/jar-manager/web..."
 mkdir -p "$SRC_WEB_DIR"
